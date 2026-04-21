@@ -1,0 +1,2031 @@
+{
+  "metadata": {
+    "snapshot_date": "2026-04-21",
+    "runs": {
+      "voxtral": [
+        "18-04-2026_v1",
+        "18-04-2026_v2",
+        "18-04-2026_v3",
+        "18-04-2026_v4",
+        "18-04-2026_v5",
+        "19-04-2026_v1",
+        "19-04-2026_v2",
+        "19-04-2026_v3",
+        "19-04-2026_v4",
+        "19-04-2026_v5",
+        "19-04-2026_v6",
+        "19-04-2026_v7",
+        "19-04-2026_v8",
+        "19-04-2026_v9",
+        "19-04-2026_v10"
+      ],
+      "javis": [
+        "19-04-2026_v1",
+        "19-04-2026_v2",
+        "19-04-2026_v3",
+        "19-04-2026_v4",
+        "19-04-2026_v5",
+        "19-04-2026_v6",
+        "19-04-2026_v7",
+        "19-04-2026_v8",
+        "19-04-2026_v9",
+        "19-04-2026_v10"
+      ]
+    },
+    "latest_runs": {
+      "voxtral": "19-04-2026_v10",
+      "javis": "19-04-2026_v10"
+    }
+  },
+  "files": [
+    "media_148280_1767762915627.mp3",
+    "media_148284_1767766514646 (1).mp3",
+    "media_148393_1767860211615 (1).mp3",
+    "media_148394_1767860189485 (1).mp3",
+    "media_148414_1767922241264 (1).mp3",
+    "media_148439_1767926711644 (1).mp3",
+    "media_148954_1768789819598 (1).mp3",
+    "media_149291_1769069811005.mp3",
+    "media_149733_1769589919400.mp3",
+    "silence_60s.wav",
+    "stochastic_noise_60s.wav"
+  ],
+  "timestamped_files": [
+    "media_148280_1767762915627.mp3",
+    "media_148284_1767766514646 (1).mp3",
+    "media_148393_1767860211615 (1).mp3",
+    "media_148394_1767860189485 (1).mp3",
+    "media_148414_1767922241264 (1).mp3",
+    "media_148439_1767926711644 (1).mp3",
+    "media_148954_1768789819598 (1).mp3",
+    "media_149291_1769069811005.mp3",
+    "media_149733_1769589919400.mp3"
+  ],
+  "engine_summary": {
+    "voxtral": {
+      "records": 165,
+      "runs": 15,
+      "files": 11,
+      "timestamped_files": 9,
+      "cer_all": {
+        "count": 165,
+        "mean": 45.026363636363634,
+        "median": 35.1,
+        "std": 34.31710685854062,
+        "min": 0.0,
+        "max": 100.0,
+        "p95": 100.0,
+        "mean_ci95": [
+          39.79520151515152,
+          50.41318787878788
+        ]
+      },
+      "cer_gt": {
+        "count": 135,
+        "mean": 55.032222222222224,
+        "median": 60.43,
+        "std": 29.811445146594203,
+        "min": 15.77,
+        "max": 100.0,
+        "p95": 100.0,
+        "mean_ci95": [
+          50.35150925925926,
+          60.324401851851846
+        ]
+      },
+      "rtf": {
+        "count": 165,
+        "mean": 1.6771757575757575,
+        "median": 1.59,
+        "std": 0.658041860614806,
+        "min": 0.609,
+        "max": 2.94,
+        "p95": 2.4938000000000002,
+        "mean_ci95": [
+          1.5789624242424243,
+          1.7764928787878789
+        ]
+      },
+      "hallucination_rate": 0.7151515151515152,
+      "hallucination_rate_ci95": [
+        0.642000035154649,
+        0.7785124451819506
+      ],
+      "high_severity_rate": 0.3090909090909091,
+      "high_severity_rate_ci95": [
+        0.24359343748041756,
+        0.3832757701082335
+      ],
+      "status_counts": {
+        "success": 165
+      }
+    },
+    "javis": {
+      "records": 110,
+      "runs": 10,
+      "files": 11,
+      "timestamped_files": 9,
+      "cer_all": {
+        "count": 110,
+        "mean": 34.66509090909091,
+        "median": 28.965,
+        "std": 34.09218872798376,
+        "min": 0.0,
+        "max": 181.66,
+        "p95": 93.90899999999999,
+        "mean_ci95": [
+          28.583750000000002,
+          41.34948409090908
+        ]
+      },
+      "cer_gt": {
+        "count": 90,
+        "mean": 42.36844444444444,
+        "median": 30.17,
+        "std": 33.07842314228789,
+        "min": 17.09,
+        "max": 181.66,
+        "p95": 126.62099999999982,
+        "mean_ci95": [
+          36.12959166666667,
+          49.733044444444445
+        ]
+      },
+      "rtf": {
+        "count": 110,
+        "mean": 0.005781818181818182,
+        "median": 0.005,
+        "std": 0.002852054500887572,
+        "min": 0.002,
+        "max": 0.013,
+        "p95": 0.011,
+        "mean_ci95": [
+          0.0052636363636363636,
+          0.00631840909090909
+        ]
+      },
+      "hallucination_rate": 0.9,
+      "hallucination_rate_ci95": [
+        0.8297634281701123,
+        0.9432404649585859
+      ],
+      "high_severity_rate": 0.36363636363636365,
+      "high_severity_rate_ci95": [
+        0.27975087737355164,
+        0.45672506815075586
+      ],
+      "status_counts": {
+        "success": 110
+      }
+    }
+  },
+  "engine_file_summary": {
+    "voxtral": {
+      "media_148280_1767762915627.mp3": {
+        "runs": 15,
+        "cer_mean": 65.49,
+        "cer_std": 0.0,
+        "cer_min": 65.49,
+        "cer_max": 65.49,
+        "rtf_mean": 1.2200666666666666,
+        "rtf_std": 0.09138159308939385,
+        "hallucination_rate": 0.8,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "medium": 12,
+          "none": 3
+        },
+        "primary_error_counts": {
+          "insertion": 12,
+          "none": 3
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "poor": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "c170cab6da8a",
+        "audio": {
+          "avg_rolloff": 1936.7823981629392,
+          "avg_flatness": 0.04909823462367058,
+          "avg_rms": 0.022824183106422424,
+          "max_rms": 0.13177157938480377,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[1.349 - 3.426] SPEAKER 1: はい、ありがとうございます。アセットジャパンです。 [4.796 - 9.287] SPEAKER 2: お世話になっております。 私バルテスの中岡と申します。 [9.293 - 10.428] SPEAKER 1: はい、お世話になります。",
+        "rttm": {
+          "segments": 30,
+          "speakers": 2,
+          "voiced_seconds": 70.809,
+          "path": "rttm/media_148280_1767762915627.rttm"
+        }
+      },
+      "media_148284_1767766514646 (1).mp3": {
+        "runs": 15,
+        "cer_mean": 15.77,
+        "cer_std": 0.0,
+        "cer_min": 15.77,
+        "cer_max": 15.77,
+        "rtf_mean": 2.3945333333333334,
+        "rtf_std": 0.09561998861233052,
+        "hallucination_rate": 0.9333333333333333,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "low": 6,
+          "medium": 8,
+          "none": 1
+        },
+        "primary_error_counts": {
+          "insertion": 14,
+          "none": 1
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "good": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "db6c0d2dbcdb",
+        "audio": {
+          "avg_rolloff": 2288.5680379746836,
+          "avg_flatness": 0.09022089093923569,
+          "avg_rms": 0.01112314686179161,
+          "max_rms": 0.052168477326631546,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.800 - 4.035] SPEAKER 1: ありがとうございます。保険代理店ベネフィット（tên cty cần check)でございます。 [4.768 - 7.396] SPEAKER 2: お世話になります。AJテクノロジーズのツジと申します。 [7.534 - 9.138] SPEAKER 1: はい、お世話になります。",
+        "rttm": {
+          "segments": 18,
+          "speakers": 2,
+          "voiced_seconds": 33.574000000000005,
+          "path": "rttm/media_148284_1767766514646.rttm"
+        }
+      },
+      "media_148393_1767860211615 (1).mp3": {
+        "runs": 15,
+        "cer_mean": 17.55,
+        "cer_std": 0.0,
+        "cer_min": 17.55,
+        "cer_max": 17.55,
+        "rtf_mean": 2.421,
+        "rtf_std": 0.15356909411293237,
+        "hallucination_rate": 0.9333333333333333,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "medium": 14,
+          "none": 1
+        },
+        "primary_error_counts": {
+          "insertion": 14,
+          "none": 1
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "good": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "bbd65825c1ed",
+        "audio": {
+          "avg_rolloff": 2554.054317331671,
+          "avg_flatness": 0.12486376613378525,
+          "avg_rms": 0.011638736352324486,
+          "max_rms": 0.053087297827005386,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[1.470 - 3.655] SPEAKER 1: お電話ありがとうございます。(tên cty k nghe rõ)建設のエスタと申します。 [3.941 - 7.288] SPEAKER 2: あ、いつもお世話になってます。AJテクノロジーズの山下です。 [7.491 - 8.592] SPEAKER 1: はい、お世話になっております。",
+        "rttm": {
+          "segments": 11,
+          "speakers": 2,
+          "voiced_seconds": 22.308999999999997,
+          "path": "rttm/media_148393_1767860211615.rttm"
+        }
+      },
+      "media_148394_1767860189485 (1).mp3": {
+        "runs": 15,
+        "cer_mean": 33.67,
+        "cer_std": 0.0,
+        "cer_min": 33.67,
+        "cer_max": 33.67,
+        "rtf_mean": 2.4530666666666665,
+        "rtf_std": 0.1235121946296082,
+        "hallucination_rate": 0.9333333333333333,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "medium": 14,
+          "none": 1
+        },
+        "primary_error_counts": {
+          "insertion": 14,
+          "none": 1
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "fair": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "424f1de3b27e",
+        "audio": {
+          "avg_rolloff": 2402.335761758691,
+          "avg_flatness": 0.09865112602710724,
+          "avg_rms": 0.013871604576706886,
+          "max_rms": 0.047669507563114166,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.958 - 1.849] SPEAKER 1: はい、マルケンです。 [2.199 - 5.223] SPEAKER 2: あ、いつもお世話になってます。AJテクノロジーズの山下です。 [5.421 - 6.130] SPEAKER 1: あ、お世話になります。",
+        "rttm": {
+          "segments": 15,
+          "speakers": 2,
+          "voiced_seconds": 20.951999999999995,
+          "path": "rttm/media_148394_1767860189485.rttm"
+        }
+      },
+      "media_148414_1767922241264 (1).mp3": {
+        "runs": 15,
+        "cer_mean": 100.0,
+        "cer_std": 0.0,
+        "cer_min": 100.0,
+        "cer_max": 100.0,
+        "rtf_mean": 1.8254666666666666,
+        "rtf_std": 0.08257268851677825,
+        "hallucination_rate": 0.9333333333333333,
+        "high_severity_rate": 0.9333333333333333,
+        "severity_counts": {
+          "high": 14,
+          "none": 1
+        },
+        "primary_error_counts": {
+          "content_replacement": 3,
+          "silence_text": 9,
+          "insertion": 2,
+          "none": 1
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "poor": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "5bfbcfbef5ca",
+        "audio": {
+          "avg_rolloff": 2364.236735611511,
+          "avg_flatness": 0.07179367542266846,
+          "avg_rms": 0.03000675141811371,
+          "max_rms": 0.12548473477363586,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.746 - 2.837] SPEAKER 1: はい、中央清算管理課でございます。 [3.129 - 8.094] SPEAKER 2: え、愛知県名古屋市の株式会社アセットジャパンと申しますけども、お世話になります。 [7.492 - 8.838] SPEAKER 1: お世話になっております。",
+        "rttm": {
+          "segments": 21,
+          "speakers": 2,
+          "voiced_seconds": 52.438999999999986,
+          "path": "rttm/media_148414_1767922241264.rttm"
+        }
+      },
+      "media_148439_1767926711644 (1).mp3": {
+        "runs": 15,
+        "cer_mean": 35.1,
+        "cer_std": 0.0,
+        "cer_min": 35.1,
+        "cer_max": 35.1,
+        "rtf_mean": 2.4258666666666664,
+        "rtf_std": 0.14965732710280363,
+        "hallucination_rate": 0.9333333333333333,
+        "high_severity_rate": 0.9333333333333333,
+        "severity_counts": {
+          "high": 14,
+          "none": 1
+        },
+        "primary_error_counts": {
+          "insertion": 14,
+          "none": 1
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "fair": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "e6221af02fbc",
+        "audio": {
+          "avg_rolloff": 2140.588561100746,
+          "avg_flatness": 0.07130980491638184,
+          "avg_rms": 0.025457441806793213,
+          "max_rms": 0.1412975937128067,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[2.339 - 4.027] SPEAKER 1: Assetojapanのクマガイでございます。 [4.578 - 6.290] SPEAKER 2: あ、お世話になります。 [5.871 - 7.153] SPEAKER 1: お世話になります。すいません、先ほどの来週の、あのー、( cần check lại đoạn ni )お打ち合わせの件なんですけども。",
+        "rttm": {
+          "segments": 18,
+          "speakers": 2,
+          "voiced_seconds": 22.145999999999997,
+          "path": "rttm/media_148439_1767926711644.rttm"
+        }
+      },
+      "media_148954_1768789819598 (1).mp3": {
+        "runs": 15,
+        "cer_mean": 69.48,
+        "cer_std": 0.0,
+        "cer_min": 69.48,
+        "cer_max": 69.48,
+        "rtf_mean": 1.0151999999999999,
+        "rtf_std": 0.06541783650758659,
+        "hallucination_rate": 0.8666666666666667,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "medium": 13,
+          "none": 2
+        },
+        "primary_error_counts": {
+          "insertion": 13,
+          "none": 2
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "poor": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "289c6556cf87",
+        "audio": {
+          "avg_rolloff": 2271.9010416666665,
+          "avg_flatness": 0.09579508751630783,
+          "avg_rms": 0.011838874779641628,
+          "max_rms": 0.056630656123161316,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[1.400 - 3.100] SPEAKER 1: はい、ありがとうございます。アセットジャパンです。 [4.050 - 9.598] SPEAKER 2: お忙しいところ恐れ入ります。私、三菱UFJ銀行の横堀(yokobori)と申します。 [5.916 - 6.073] SPEAKER 1: はい。お世話になっております。",
+        "rttm": {
+          "segments": 36,
+          "speakers": 2,
+          "voiced_seconds": 93.72999999999998,
+          "path": "rttm/media_148954_1768789819598.rttm"
+        }
+      },
+      "media_149291_1769069811005.mp3": {
+        "runs": 15,
+        "cer_mean": 97.8,
+        "cer_std": 0.0,
+        "cer_min": 97.8,
+        "cer_max": 97.8,
+        "rtf_mean": 0.6112,
+        "rtf_std": 0.007968270410404849,
+        "hallucination_rate": 0.0,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "none": 15
+        },
+        "primary_error_counts": {
+          "none": 15
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "poor": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "71fb9cd6e714",
+        "audio": {
+          "avg_rolloff": 1890.8452052696077,
+          "avg_flatness": 0.040769029408693314,
+          "avg_rms": 0.03922722861170769,
+          "max_rms": 0.18249815702438354,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.900 - 9.722] SPEAKER 1: お待たせいたしました。はい、ちょっと担当はただいま席を外しておりまして不在にしておりまして、うちでお折り返しご連絡させていただきたいんですけれども、折り返しお電話させていただく際に、今かけていただいてる携帯の番号でよろしいですかね。 [2.175 - 2.458] SPEAKER 2: はい。かせん、あの、今日中にかかってきますか？ [6.272 - 6.702] SPEAKER 1: あ、ちょっと確認させていただきますのでちょっと、今日中がもしかしたら難しいかもしれないんですけれども、明日以降でも大丈夫そうですか？",
+        "rttm": {
+          "segments": 45,
+          "speakers": 2,
+          "voiced_seconds": 156.70499999999998,
+          "path": "rttm/media_149291_1769069811005.rttm"
+        }
+      },
+      "media_149733_1769589919400.mp3": {
+        "runs": 15,
+        "cer_mean": 60.43,
+        "cer_std": 0.0,
+        "cer_min": 60.43,
+        "cer_max": 60.43,
+        "rtf_mean": 0.8914,
+        "rtf_std": 0.04586327506840303,
+        "hallucination_rate": 0.8,
+        "high_severity_rate": 0.8,
+        "severity_counts": {
+          "high": 12,
+          "none": 3
+        },
+        "primary_error_counts": {
+          "insertion": 4,
+          "content_replacement": 8,
+          "none": 3
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "poor": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "02ade01b6761",
+        "audio": {
+          "avg_rolloff": 2050.323180612846,
+          "avg_flatness": 0.08070400357246399,
+          "avg_rms": 0.02734288200736046,
+          "max_rms": 0.3102390170097351,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.767 - 2.273] SPEAKER 1: お電話かわります。トウノです [2.707 - 4.532] SPEAKER 2: あ、すいません、シカズです [5.053 - 8.699] SPEAKER 1: あ、えーと、梅田さんの場合、10月19日に",
+        "rttm": {
+          "segments": 30,
+          "speakers": 2,
+          "voiced_seconds": 51.397000000000006,
+          "path": "rttm/media_149733_1769589919400.rttm"
+        }
+      },
+      "silence_60s.wav": {
+        "runs": 15,
+        "cer_mean": 0.0,
+        "cer_std": 0.0,
+        "cer_min": 0.0,
+        "cer_max": 0.0,
+        "rtf_mean": 1.5844666666666667,
+        "rtf_std": 0.020975753197971764,
+        "hallucination_rate": 0.7333333333333333,
+        "high_severity_rate": 0.7333333333333333,
+        "severity_counts": {
+          "unknown": 2,
+          "high": 11,
+          "none": 2
+        },
+        "primary_error_counts": {
+          "unknown": 2,
+          "silence_text": 11,
+          "none": 2
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "good": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "e3b0c44298fc",
+        "audio": {
+          "avg_rolloff": 6798.390858208955,
+          "avg_flatness": 0.5612314939498901,
+          "avg_rms": 0.001811086549423635,
+          "max_rms": 0.0018666612450033426,
+          "reasons": [
+            "âm thanh bị nhỏ (low volume)",
+            "âm thanh bị rè (noisy/distorted)"
+          ]
+        },
+        "timestamp_excerpt": "Không có transcript timestamped cho file này.",
+        "rttm": {
+          "segments": 0,
+          "speakers": 0,
+          "voiced_seconds": 0.0,
+          "path": ""
+        }
+      },
+      "stochastic_noise_60s.wav": {
+        "runs": 15,
+        "cer_mean": 0.0,
+        "cer_std": 0.0,
+        "cer_min": 0.0,
+        "cer_max": 0.0,
+        "rtf_mean": 1.6066666666666667,
+        "rtf_std": 0.06236309449951595,
+        "hallucination_rate": 0.0,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "unknown": 2,
+          "none": 13
+        },
+        "primary_error_counts": {
+          "unknown": 2,
+          "none": 13
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "good": 15
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "e3b0c44298fc",
+        "audio": {
+          "avg_rolloff": 6802.105543710021,
+          "avg_flatness": 0.561042070388794,
+          "avg_rms": 0.0811595618724823,
+          "max_rms": 0.15611883997917175,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)"
+          ]
+        },
+        "timestamp_excerpt": "Không có transcript timestamped cho file này.",
+        "rttm": {
+          "segments": 0,
+          "speakers": 0,
+          "voiced_seconds": 0.0,
+          "path": ""
+        }
+      }
+    },
+    "javis": {
+      "media_148280_1767762915627.mp3": {
+        "runs": 10,
+        "cer_mean": 37.094,
+        "cer_std": 12.706390675561648,
+        "cer_min": 27.99,
+        "cer_max": 72.83,
+        "rtf_mean": 0.0044,
+        "rtf_std": 0.000916515138991168,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 0.2,
+        "severity_counts": {
+          "medium": 8,
+          "high": 2
+        },
+        "primary_error_counts": {
+          "insertion": 10
+        },
+        "distinct_cer_values": 10,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "fair": 9,
+          "poor": 1
+        },
+        "quality_tier_changes": true,
+        "representative_hash": "844759393bcc",
+        "audio": {
+          "avg_rolloff": 1936.7823981629392,
+          "avg_flatness": 0.04909823462367058,
+          "avg_rms": 0.022824183106422424,
+          "max_rms": 0.13177157938480377,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[1.349 - 3.426] SPEAKER 1: はい、ありがとうございます。アセットジャパンです。 [4.796 - 9.287] SPEAKER 2: お世話になっております。 私バルテスの中岡と申します。 [9.293 - 10.428] SPEAKER 1: はい、お世話になります。",
+        "rttm": {
+          "segments": 30,
+          "speakers": 2,
+          "voiced_seconds": 70.809,
+          "path": "rttm/media_148280_1767762915627.rttm"
+        }
+      },
+      "media_148284_1767766514646 (1).mp3": {
+        "runs": 10,
+        "cer_mean": 26.192,
+        "cer_std": 1.8722756207353657,
+        "cer_min": 23.46,
+        "cer_max": 30.0,
+        "rtf_mean": 0.0077,
+        "rtf_std": 0.0016155494421403512,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "medium": 10
+        },
+        "primary_error_counts": {
+          "insertion": 10
+        },
+        "distinct_cer_values": 10,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "fair": 10
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "99e7e1655f7f",
+        "audio": {
+          "avg_rolloff": 2288.5680379746836,
+          "avg_flatness": 0.09022089093923569,
+          "avg_rms": 0.01112314686179161,
+          "max_rms": 0.052168477326631546,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.800 - 4.035] SPEAKER 1: ありがとうございます。保険代理店ベネフィット（tên cty cần check)でございます。 [4.768 - 7.396] SPEAKER 2: お世話になります。AJテクノロジーズのツジと申します。 [7.534 - 9.138] SPEAKER 1: はい、お世話になります。",
+        "rttm": {
+          "segments": 18,
+          "speakers": 2,
+          "voiced_seconds": 33.574000000000005,
+          "path": "rttm/media_148284_1767766514646.rttm"
+        }
+      },
+      "media_148393_1767860211615 (1).mp3": {
+        "runs": 10,
+        "cer_mean": 32.82,
+        "cer_std": 16.26943207367731,
+        "cer_min": 17.55,
+        "cer_max": 79.26,
+        "rtf_mean": 0.010499999999999999,
+        "rtf_std": 0.0004999999999999996,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 0.3,
+        "severity_counts": {
+          "medium": 7,
+          "high": 3
+        },
+        "primary_error_counts": {
+          "insertion": 9,
+          "content_replacement": 1
+        },
+        "distinct_cer_values": 10,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "fair": 8,
+          "good": 1,
+          "poor": 1
+        },
+        "quality_tier_changes": true,
+        "representative_hash": "e2b0b3cbeeb1",
+        "audio": {
+          "avg_rolloff": 2554.054317331671,
+          "avg_flatness": 0.12486376613378525,
+          "avg_rms": 0.011638736352324486,
+          "max_rms": 0.053087297827005386,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[1.470 - 3.655] SPEAKER 1: お電話ありがとうございます。(tên cty k nghe rõ)建設のエスタと申します。 [3.941 - 7.288] SPEAKER 2: あ、いつもお世話になってます。AJテクノロジーズの山下です。 [7.491 - 8.592] SPEAKER 1: はい、お世話になっております。",
+        "rttm": {
+          "segments": 11,
+          "speakers": 2,
+          "voiced_seconds": 22.308999999999997,
+          "path": "rttm/media_148393_1767860211615.rttm"
+        }
+      },
+      "media_148394_1767860189485 (1).mp3": {
+        "runs": 10,
+        "cer_mean": 24.673,
+        "cer_std": 4.139152207880256,
+        "cer_min": 17.09,
+        "cer_max": 30.65,
+        "rtf_mean": 0.009,
+        "rtf_std": 0.0008944271909999157,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "medium": 10
+        },
+        "primary_error_counts": {
+          "insertion": 10
+        },
+        "distinct_cer_values": 9,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "fair": 8,
+          "good": 2
+        },
+        "quality_tier_changes": true,
+        "representative_hash": "8263b62b22ed",
+        "audio": {
+          "avg_rolloff": 2402.335761758691,
+          "avg_flatness": 0.09865112602710724,
+          "avg_rms": 0.013871604576706886,
+          "max_rms": 0.047669507563114166,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.958 - 1.849] SPEAKER 1: はい、マルケンです。 [2.199 - 5.223] SPEAKER 2: あ、いつもお世話になってます。AJテクノロジーズの山下です。 [5.421 - 6.130] SPEAKER 1: あ、お世話になります。",
+        "rttm": {
+          "segments": 15,
+          "speakers": 2,
+          "voiced_seconds": 20.951999999999995,
+          "path": "rttm/media_148394_1767860189485.rttm"
+        }
+      },
+      "media_148414_1767922241264 (1).mp3": {
+        "runs": 10,
+        "cer_mean": 39.492000000000004,
+        "cer_std": 1.0247419187288085,
+        "cer_min": 38.27,
+        "cer_max": 41.84,
+        "rtf_mean": 0.0053,
+        "rtf_std": 0.001004987562112089,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "medium": 10
+        },
+        "primary_error_counts": {
+          "insertion": 10
+        },
+        "distinct_cer_values": 6,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "fair": 10
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "1a9f3cec6023",
+        "audio": {
+          "avg_rolloff": 2364.236735611511,
+          "avg_flatness": 0.07179367542266846,
+          "avg_rms": 0.03000675141811371,
+          "max_rms": 0.12548473477363586,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.746 - 2.837] SPEAKER 1: はい、中央清算管理課でございます。 [3.129 - 8.094] SPEAKER 2: え、愛知県名古屋市の株式会社アセットジャパンと申しますけども、お世話になります。 [7.492 - 8.838] SPEAKER 1: お世話になっております。",
+        "rttm": {
+          "segments": 21,
+          "speakers": 2,
+          "voiced_seconds": 52.438999999999986,
+          "path": "rttm/media_148414_1767922241264.rttm"
+        }
+      },
+      "media_148439_1767926711644 (1).mp3": {
+        "runs": 10,
+        "cer_mean": 41.394999999999996,
+        "cer_std": 23.874679579001683,
+        "cer_min": 26.92,
+        "cer_max": 94.71,
+        "rtf_mean": 0.0087,
+        "rtf_std": 0.001734935157289747,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 0.6,
+        "severity_counts": {
+          "high": 6,
+          "medium": 4
+        },
+        "primary_error_counts": {
+          "insertion": 9,
+          "content_replacement": 1
+        },
+        "distinct_cer_values": 8,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "fair": 8,
+          "poor": 2
+        },
+        "quality_tier_changes": true,
+        "representative_hash": "06c3ffa90a0a",
+        "audio": {
+          "avg_rolloff": 2140.588561100746,
+          "avg_flatness": 0.07130980491638184,
+          "avg_rms": 0.025457441806793213,
+          "max_rms": 0.1412975937128067,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[2.339 - 4.027] SPEAKER 1: Assetojapanのクマガイでございます。 [4.578 - 6.290] SPEAKER 2: あ、お世話になります。 [5.871 - 7.153] SPEAKER 1: お世話になります。すいません、先ほどの来週の、あのー、( cần check lại đoạn ni )お打ち合わせの件なんですけども。",
+        "rttm": {
+          "segments": 18,
+          "speakers": 2,
+          "voiced_seconds": 22.145999999999997,
+          "path": "rttm/media_148439_1767926711644.rttm"
+        }
+      },
+      "media_148954_1768789819598 (1).mp3": {
+        "runs": 10,
+        "cer_mean": 40.775,
+        "cer_std": 19.765163925452278,
+        "cer_min": 29.31,
+        "cer_max": 92.93,
+        "rtf_mean": 0.0031,
+        "rtf_std": 0.0007,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 0.6,
+        "severity_counts": {
+          "high": 6,
+          "medium": 4
+        },
+        "primary_error_counts": {
+          "insertion": 10
+        },
+        "distinct_cer_values": 9,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "fair": 8,
+          "poor": 2
+        },
+        "quality_tier_changes": true,
+        "representative_hash": "58544df63ac0",
+        "audio": {
+          "avg_rolloff": 2271.9010416666665,
+          "avg_flatness": 0.09579508751630783,
+          "avg_rms": 0.011838874779641628,
+          "max_rms": 0.056630656123161316,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[1.400 - 3.100] SPEAKER 1: はい、ありがとうございます。アセットジャパンです。 [4.050 - 9.598] SPEAKER 2: お忙しいところ恐れ入ります。私、三菱UFJ銀行の横堀(yokobori)と申します。 [5.916 - 6.073] SPEAKER 1: はい。お世話になっております。",
+        "rttm": {
+          "segments": 36,
+          "speakers": 2,
+          "voiced_seconds": 93.72999999999998,
+          "path": "rttm/media_148954_1768789819598.rttm"
+        }
+      },
+      "media_149291_1769069811005.mp3": {
+        "runs": 10,
+        "cer_mean": 91.512,
+        "cer_std": 72.36988942923708,
+        "cer_min": 18.66,
+        "cer_max": 181.66,
+        "rtf_mean": 0.0021,
+        "rtf_std": 0.00030000000000000003,
+        "hallucination_rate": 0.9,
+        "high_severity_rate": 0.4,
+        "severity_counts": {
+          "high": 4,
+          "medium": 5,
+          "none": 1
+        },
+        "primary_error_counts": {
+          "insertion": 9,
+          "none": 1
+        },
+        "distinct_cer_values": 10,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "poor": 5,
+          "good": 4,
+          "fair": 1
+        },
+        "quality_tier_changes": true,
+        "representative_hash": "a824d8c43e69",
+        "audio": {
+          "avg_rolloff": 1890.8452052696077,
+          "avg_flatness": 0.040769029408693314,
+          "avg_rms": 0.03922722861170769,
+          "max_rms": 0.18249815702438354,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.900 - 9.722] SPEAKER 1: お待たせいたしました。はい、ちょっと担当はただいま席を外しておりまして不在にしておりまして、うちでお折り返しご連絡させていただきたいんですけれども、折り返しお電話させていただく際に、今かけていただいてる携帯の番号でよろしいですかね。 [2.175 - 2.458] SPEAKER 2: はい。かせん、あの、今日中にかかってきますか？ [6.272 - 6.702] SPEAKER 1: あ、ちょっと確認させていただきますのでちょっと、今日中がもしかしたら難しいかもしれないんですけれども、明日以降でも大丈夫そうですか？",
+        "rttm": {
+          "segments": 45,
+          "speakers": 2,
+          "voiced_seconds": 156.70499999999998,
+          "path": "rttm/media_149291_1769069811005.rttm"
+        }
+      },
+      "media_149733_1769589919400.mp3": {
+        "runs": 10,
+        "cer_mean": 47.363,
+        "cer_std": 7.493130253772453,
+        "cer_min": 37.73,
+        "cer_max": 65.34,
+        "rtf_mean": 0.0027,
+        "rtf_std": 0.0006403124237432849,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 0.9,
+        "severity_counts": {
+          "high": 9,
+          "medium": 1
+        },
+        "primary_error_counts": {
+          "insertion": 10
+        },
+        "distinct_cer_values": 10,
+        "distinct_transcript_hashes": 10,
+        "quality_tiers": {
+          "poor": 4,
+          "fair": 6
+        },
+        "quality_tier_changes": true,
+        "representative_hash": "0320e7d0e8a1",
+        "audio": {
+          "avg_rolloff": 2050.323180612846,
+          "avg_flatness": 0.08070400357246399,
+          "avg_rms": 0.02734288200736046,
+          "max_rms": 0.3102390170097351,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+          ]
+        },
+        "timestamp_excerpt": "[0.767 - 2.273] SPEAKER 1: お電話かわります。トウノです [2.707 - 4.532] SPEAKER 2: あ、すいません、シカズです [5.053 - 8.699] SPEAKER 1: あ、えーと、梅田さんの場合、10月19日に",
+        "rttm": {
+          "segments": 30,
+          "speakers": 2,
+          "voiced_seconds": 51.397000000000006,
+          "path": "rttm/media_149733_1769589919400.rttm"
+        }
+      },
+      "silence_60s.wav": {
+        "runs": 10,
+        "cer_mean": 0.0,
+        "cer_std": 0.0,
+        "cer_min": 0.0,
+        "cer_max": 0.0,
+        "rtf_mean": 0.005,
+        "rtf_std": 0.0007745966692414834,
+        "hallucination_rate": 1.0,
+        "high_severity_rate": 1.0,
+        "severity_counts": {
+          "high": 10
+        },
+        "primary_error_counts": {
+          "silence_text": 10
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "good": 10
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "e3b0c44298fc",
+        "audio": {
+          "avg_rolloff": 6798.390858208955,
+          "avg_flatness": 0.5612314939498901,
+          "avg_rms": 0.001811086549423635,
+          "max_rms": 0.0018666612450033426,
+          "reasons": [
+            "âm thanh bị nhỏ (low volume)",
+            "âm thanh bị rè (noisy/distorted)"
+          ]
+        },
+        "timestamp_excerpt": "Không có transcript timestamped cho file này.",
+        "rttm": {
+          "segments": 0,
+          "speakers": 0,
+          "voiced_seconds": 0.0,
+          "path": ""
+        }
+      },
+      "stochastic_noise_60s.wav": {
+        "runs": 10,
+        "cer_mean": 0.0,
+        "cer_std": 0.0,
+        "cer_min": 0.0,
+        "cer_max": 0.0,
+        "rtf_mean": 0.0051,
+        "rtf_std": 0.001044030650891055,
+        "hallucination_rate": 0.0,
+        "high_severity_rate": 0.0,
+        "severity_counts": {
+          "none": 10
+        },
+        "primary_error_counts": {
+          "none": 10
+        },
+        "distinct_cer_values": 1,
+        "distinct_transcript_hashes": 1,
+        "quality_tiers": {
+          "good": 10
+        },
+        "quality_tier_changes": false,
+        "representative_hash": "e3b0c44298fc",
+        "audio": {
+          "avg_rolloff": 6802.105543710021,
+          "avg_flatness": 0.561042070388794,
+          "avg_rms": 0.0811595618724823,
+          "max_rms": 0.15611883997917175,
+          "reasons": [
+            "âm thanh bị rè (noisy/distorted)"
+          ]
+        },
+        "timestamp_excerpt": "Không có transcript timestamped cho file này.",
+        "rttm": {
+          "segments": 0,
+          "speakers": 0,
+          "voiced_seconds": 0.0,
+          "path": ""
+        }
+      }
+    }
+  },
+  "engine_run_summary": {
+    "voxtral": {
+      "18-04-2026_v1": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.6600000000000001,
+        "hallucination_rate": 0.7272727272727273
+      },
+      "18-04-2026_v2": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.7133636363636364,
+        "hallucination_rate": 0.7272727272727273
+      },
+      "18-04-2026_v3": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.664090909090909,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "18-04-2026_v4": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.6465454545454545,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "18-04-2026_v5": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.7066363636363637,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "19-04-2026_v1": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.7314545454545456,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "19-04-2026_v2": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.663909090909091,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "19-04-2026_v3": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.647181818181818,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "19-04-2026_v4": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.692,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "19-04-2026_v5": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.6472727272727272,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "19-04-2026_v6": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.7165454545454546,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "19-04-2026_v7": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.6470909090909092,
+        "hallucination_rate": 0.6363636363636364
+      },
+      "19-04-2026_v8": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.6986363636363637,
+        "hallucination_rate": 0.45454545454545453
+      },
+      "19-04-2026_v9": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.67,
+        "hallucination_rate": 0.0
+      },
+      "19-04-2026_v10": {
+        "mean_cer_all": 45.026363636363634,
+        "mean_cer_gt": 55.032222222222224,
+        "mean_rtf": 1.6529090909090909,
+        "hallucination_rate": 0.8181818181818182
+      }
+    },
+    "javis": {
+      "19-04-2026_v1": {
+        "mean_cer_all": 37.07181818181818,
+        "mean_cer_gt": 45.31,
+        "mean_rtf": 0.005545454545454545,
+        "hallucination_rate": 0.9090909090909091
+      },
+      "19-04-2026_v2": {
+        "mean_cer_all": 39.42090909090909,
+        "mean_cer_gt": 48.18111111111111,
+        "mean_rtf": 0.005363636363636364,
+        "hallucination_rate": 0.9090909090909091
+      },
+      "19-04-2026_v3": {
+        "mean_cer_all": 27.72,
+        "mean_cer_gt": 33.88,
+        "mean_rtf": 0.006363636363636364,
+        "hallucination_rate": 0.9090909090909091
+      },
+      "19-04-2026_v4": {
+        "mean_cer_all": 44.49727272727273,
+        "mean_cer_gt": 54.385555555555555,
+        "mean_rtf": 0.005454545454545455,
+        "hallucination_rate": 0.8181818181818182
+      },
+      "19-04-2026_v5": {
+        "mean_cer_all": 46.161818181818184,
+        "mean_cer_gt": 56.42,
+        "mean_rtf": 0.00609090909090909,
+        "hallucination_rate": 0.9090909090909091
+      },
+      "19-04-2026_v6": {
+        "mean_cer_all": 24.91,
+        "mean_cer_gt": 30.445555555555554,
+        "mean_rtf": 0.006,
+        "hallucination_rate": 0.9090909090909091
+      },
+      "19-04-2026_v7": {
+        "mean_cer_all": 32.35909090909091,
+        "mean_cer_gt": 39.55,
+        "mean_rtf": 0.005818181818181818,
+        "hallucination_rate": 0.9090909090909091
+      },
+      "19-04-2026_v8": {
+        "mean_cer_all": 37.89454545454545,
+        "mean_cer_gt": 46.315555555555555,
+        "mean_rtf": 0.005454545454545455,
+        "hallucination_rate": 0.9090909090909091
+      },
+      "19-04-2026_v9": {
+        "mean_cer_all": 26.826363636363634,
+        "mean_cer_gt": 32.78777777777778,
+        "mean_rtf": 0.005818181818181818,
+        "hallucination_rate": 0.9090909090909091
+      },
+      "19-04-2026_v10": {
+        "mean_cer_all": 29.78909090909091,
+        "mean_cer_gt": 36.40888888888889,
+        "mean_rtf": 0.005909090909090909,
+        "hallucination_rate": 0.9090909090909091
+      }
+    }
+  },
+  "comparison": {
+    "files": {
+      "media_148280_1767762915627.mp3": {
+        "voxtral_cer_mean": 65.49,
+        "javis_cer_mean": 37.094,
+        "voxtral_rtf_mean": 1.2200666666666666,
+        "javis_rtf_mean": 0.0044,
+        "voxtral_better_probability": 0.1,
+        "javis_better_probability": 0.9,
+        "tie_probability": 0.0,
+        "javis_better_ci95": [
+          0.7,
+          1.0
+        ]
+      },
+      "media_148284_1767766514646 (1).mp3": {
+        "voxtral_cer_mean": 15.77,
+        "javis_cer_mean": 26.192,
+        "voxtral_rtf_mean": 2.3945333333333334,
+        "javis_rtf_mean": 0.0077,
+        "voxtral_better_probability": 1.0,
+        "javis_better_probability": 0.0,
+        "tie_probability": 0.0,
+        "javis_better_ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "media_148393_1767860211615 (1).mp3": {
+        "voxtral_cer_mean": 17.55,
+        "javis_cer_mean": 32.82,
+        "voxtral_rtf_mean": 2.421,
+        "javis_rtf_mean": 0.010499999999999999,
+        "voxtral_better_probability": 0.9,
+        "javis_better_probability": 0.0,
+        "tie_probability": 0.1,
+        "javis_better_ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "media_148394_1767860189485 (1).mp3": {
+        "voxtral_cer_mean": 33.67,
+        "javis_cer_mean": 24.673,
+        "voxtral_rtf_mean": 2.4530666666666665,
+        "javis_rtf_mean": 0.009,
+        "voxtral_better_probability": 0.0,
+        "javis_better_probability": 1.0,
+        "tie_probability": 0.0,
+        "javis_better_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "media_148414_1767922241264 (1).mp3": {
+        "voxtral_cer_mean": 100.0,
+        "javis_cer_mean": 39.492000000000004,
+        "voxtral_rtf_mean": 1.8254666666666666,
+        "javis_rtf_mean": 0.0053,
+        "voxtral_better_probability": 0.0,
+        "javis_better_probability": 1.0,
+        "tie_probability": 0.0,
+        "javis_better_ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "media_148439_1767926711644 (1).mp3": {
+        "voxtral_cer_mean": 35.1,
+        "javis_cer_mean": 41.394999999999996,
+        "voxtral_rtf_mean": 2.4258666666666664,
+        "javis_rtf_mean": 0.0087,
+        "voxtral_better_probability": 0.3,
+        "javis_better_probability": 0.7,
+        "tie_probability": 0.0,
+        "javis_better_ci95": [
+          0.4,
+          1.0
+        ]
+      },
+      "media_148954_1768789819598 (1).mp3": {
+        "voxtral_cer_mean": 69.48,
+        "javis_cer_mean": 40.775,
+        "voxtral_rtf_mean": 1.0151999999999999,
+        "javis_rtf_mean": 0.0031,
+        "voxtral_better_probability": 0.1,
+        "javis_better_probability": 0.9,
+        "tie_probability": 0.0,
+        "javis_better_ci95": [
+          0.7,
+          1.0
+        ]
+      },
+      "media_149291_1769069811005.mp3": {
+        "voxtral_cer_mean": 97.8,
+        "javis_cer_mean": 91.512,
+        "voxtral_rtf_mean": 0.6112,
+        "javis_rtf_mean": 0.0021,
+        "voxtral_better_probability": 0.5,
+        "javis_better_probability": 0.5,
+        "tie_probability": 0.0,
+        "javis_better_ci95": [
+          0.2,
+          0.8
+        ]
+      },
+      "media_149733_1769589919400.mp3": {
+        "voxtral_cer_mean": 60.43,
+        "javis_cer_mean": 47.363,
+        "voxtral_rtf_mean": 0.8914,
+        "javis_rtf_mean": 0.0027,
+        "voxtral_better_probability": 0.1,
+        "javis_better_probability": 0.9,
+        "tie_probability": 0.0,
+        "javis_better_ci95": [
+          0.7,
+          1.0
+        ]
+      },
+      "silence_60s.wav": {
+        "voxtral_cer_mean": 0.0,
+        "javis_cer_mean": 0.0,
+        "voxtral_rtf_mean": 1.5844666666666667,
+        "javis_rtf_mean": 0.005,
+        "voxtral_better_probability": 0.0,
+        "javis_better_probability": 0.0,
+        "tie_probability": 1.0,
+        "javis_better_ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "stochastic_noise_60s.wav": {
+        "voxtral_cer_mean": 0.0,
+        "javis_cer_mean": 0.0,
+        "voxtral_rtf_mean": 1.6066666666666667,
+        "javis_rtf_mean": 0.0051,
+        "voxtral_better_probability": 0.0,
+        "javis_better_probability": 0.0,
+        "tie_probability": 1.0,
+        "javis_better_ci95": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "run_level": {
+      "total_pairs": 150,
+      "voxtral_better_cer_probability": 0.1,
+      "javis_better_cer_probability": 0.9,
+      "tie_cer_probability": 0.0,
+      "voxtral_faster_probability": 0.0,
+      "javis_faster_probability": 1.0,
+      "tie_rtf_probability": 0.0,
+      "javis_better_cer_ci95": [
+        0.7,
+        1.0
+      ],
+      "javis_faster_ci95": [
+        1.0,
+        1.0
+      ]
+    }
+  },
+  "poor_cases": [
+    {
+      "engine": "javis",
+      "file": "media_149291_1769069811005.mp3",
+      "triggers": [
+        "CER>=80%",
+        "Có severity=high",
+        "CER std>=10",
+        "Đổi hạng chất lượng giữa các run",
+        "Top tail CER",
+        "Top tail bất ổn"
+      ],
+      "cer_mean": 91.512,
+      "cer_std": 72.36988942923708,
+      "rtf_mean": 0.0021,
+      "hallucination_rate": 0.9,
+      "high_severity_rate": 0.4,
+      "distinct_transcript_hashes": 10,
+      "audio_rolloff": 1890.8452052696077,
+      "audio_flatness": 0.040769029408693314
+    },
+    {
+      "engine": "voxtral",
+      "file": "media_148414_1767922241264 (1).mp3",
+      "triggers": [
+        "CER>=80%",
+        "Có severity=high",
+        "Top tail CER",
+        "Top tail severity high"
+      ],
+      "cer_mean": 100.0,
+      "cer_std": 0.0,
+      "rtf_mean": 1.8254666666666666,
+      "hallucination_rate": 0.9333333333333333,
+      "high_severity_rate": 0.9333333333333333,
+      "distinct_transcript_hashes": 1,
+      "audio_rolloff": 2364.236735611511,
+      "audio_flatness": 0.07179367542266846
+    },
+    {
+      "engine": "javis",
+      "file": "media_149733_1769589919400.mp3",
+      "triggers": [
+        "Có severity=high",
+        "Đổi hạng chất lượng giữa các run",
+        "Top tail CER",
+        "Top tail severity high"
+      ],
+      "cer_mean": 47.363,
+      "cer_std": 7.493130253772453,
+      "rtf_mean": 0.0027,
+      "hallucination_rate": 1.0,
+      "high_severity_rate": 0.9,
+      "distinct_transcript_hashes": 10,
+      "audio_rolloff": 2050.323180612846,
+      "audio_flatness": 0.08070400357246399
+    },
+    {
+      "engine": "javis",
+      "file": "media_148439_1767926711644 (1).mp3",
+      "triggers": [
+        "Có severity=high",
+        "CER std>=10",
+        "Đổi hạng chất lượng giữa các run",
+        "Top tail bất ổn"
+      ],
+      "cer_mean": 41.394999999999996,
+      "cer_std": 23.874679579001683,
+      "rtf_mean": 0.0087,
+      "hallucination_rate": 1.0,
+      "high_severity_rate": 0.6,
+      "distinct_transcript_hashes": 10,
+      "audio_rolloff": 2140.588561100746,
+      "audio_flatness": 0.07130980491638184
+    },
+    {
+      "engine": "voxtral",
+      "file": "media_148439_1767926711644 (1).mp3",
+      "triggers": [
+        "RTF>=2.0",
+        "Có severity=high",
+        "Top tail severity high",
+        "Top tail RTF"
+      ],
+      "cer_mean": 35.1,
+      "cer_std": 0.0,
+      "rtf_mean": 2.4258666666666664,
+      "hallucination_rate": 0.9333333333333333,
+      "high_severity_rate": 0.9333333333333333,
+      "distinct_transcript_hashes": 1,
+      "audio_rolloff": 2140.588561100746,
+      "audio_flatness": 0.07130980491638184
+    },
+    {
+      "engine": "javis",
+      "file": "media_148393_1767860211615 (1).mp3",
+      "triggers": [
+        "Có severity=high",
+        "CER std>=10",
+        "Đổi hạng chất lượng giữa các run",
+        "Top tail RTF"
+      ],
+      "cer_mean": 32.82,
+      "cer_std": 16.26943207367731,
+      "rtf_mean": 0.010499999999999999,
+      "hallucination_rate": 1.0,
+      "high_severity_rate": 0.3,
+      "distinct_transcript_hashes": 10,
+      "audio_rolloff": 2554.054317331671,
+      "audio_flatness": 0.12486376613378525
+    },
+    {
+      "engine": "javis",
+      "file": "media_148954_1768789819598 (1).mp3",
+      "triggers": [
+        "Có severity=high",
+        "CER std>=10",
+        "Đổi hạng chất lượng giữa các run"
+      ],
+      "cer_mean": 40.775,
+      "cer_std": 19.765163925452278,
+      "rtf_mean": 0.0031,
+      "hallucination_rate": 1.0,
+      "high_severity_rate": 0.6,
+      "distinct_transcript_hashes": 10,
+      "audio_rolloff": 2271.9010416666665,
+      "audio_flatness": 0.09579508751630783
+    },
+    {
+      "engine": "javis",
+      "file": "media_148280_1767762915627.mp3",
+      "triggers": [
+        "Có severity=high",
+        "CER std>=10",
+        "Đổi hạng chất lượng giữa các run"
+      ],
+      "cer_mean": 37.094,
+      "cer_std": 12.706390675561648,
+      "rtf_mean": 0.0044,
+      "hallucination_rate": 1.0,
+      "high_severity_rate": 0.2,
+      "distinct_transcript_hashes": 10,
+      "audio_rolloff": 1936.7823981629392,
+      "audio_flatness": 0.04909823462367058
+    },
+    {
+      "engine": "voxtral",
+      "file": "media_149291_1769069811005.mp3",
+      "triggers": [
+        "CER>=80%",
+        "Top tail CER"
+      ],
+      "cer_mean": 97.8,
+      "cer_std": 0.0,
+      "rtf_mean": 0.6112,
+      "hallucination_rate": 0.0,
+      "high_severity_rate": 0.0,
+      "distinct_transcript_hashes": 1,
+      "audio_rolloff": 1890.8452052696077,
+      "audio_flatness": 0.040769029408693314
+    },
+    {
+      "engine": "voxtral",
+      "file": "media_148394_1767860189485 (1).mp3",
+      "triggers": [
+        "RTF>=2.0",
+        "Top tail RTF"
+      ],
+      "cer_mean": 33.67,
+      "cer_std": 0.0,
+      "rtf_mean": 2.4530666666666665,
+      "hallucination_rate": 0.9333333333333333,
+      "high_severity_rate": 0.0,
+      "distinct_transcript_hashes": 1,
+      "audio_rolloff": 2402.335761758691,
+      "audio_flatness": 0.09865112602710724
+    },
+    {
+      "engine": "javis",
+      "file": "media_148394_1767860189485 (1).mp3",
+      "triggers": [
+        "Đổi hạng chất lượng giữa các run",
+        "Top tail RTF"
+      ],
+      "cer_mean": 24.673,
+      "cer_std": 4.139152207880256,
+      "rtf_mean": 0.009,
+      "hallucination_rate": 1.0,
+      "high_severity_rate": 0.0,
+      "distinct_transcript_hashes": 10,
+      "audio_rolloff": 2402.335761758691,
+      "audio_flatness": 0.09865112602710724
+    },
+    {
+      "engine": "voxtral",
+      "file": "media_149733_1769589919400.mp3",
+      "triggers": [
+        "Có severity=high"
+      ],
+      "cer_mean": 60.43,
+      "cer_std": 0.0,
+      "rtf_mean": 0.8914,
+      "hallucination_rate": 0.8,
+      "high_severity_rate": 0.8,
+      "distinct_transcript_hashes": 1,
+      "audio_rolloff": 2050.323180612846,
+      "audio_flatness": 0.08070400357246399
+    },
+    {
+      "engine": "voxtral",
+      "file": "media_148393_1767860211615 (1).mp3",
+      "triggers": [
+        "RTF>=2.0"
+      ],
+      "cer_mean": 17.55,
+      "cer_std": 0.0,
+      "rtf_mean": 2.421,
+      "hallucination_rate": 0.9333333333333333,
+      "high_severity_rate": 0.0,
+      "distinct_transcript_hashes": 1,
+      "audio_rolloff": 2554.054317331671,
+      "audio_flatness": 0.12486376613378525
+    },
+    {
+      "engine": "voxtral",
+      "file": "media_148284_1767766514646 (1).mp3",
+      "triggers": [
+        "RTF>=2.0"
+      ],
+      "cer_mean": 15.77,
+      "cer_std": 0.0,
+      "rtf_mean": 2.3945333333333334,
+      "hallucination_rate": 0.9333333333333333,
+      "high_severity_rate": 0.0,
+      "distinct_transcript_hashes": 1,
+      "audio_rolloff": 2288.5680379746836,
+      "audio_flatness": 0.09022089093923569
+    }
+  ],
+  "hallucination": {
+    "engine": {
+      "voxtral": {
+        "total": 165,
+        "hallucination_rate": 0.7151515151515152,
+        "hallucination_rate_ci95": [
+          0.642000035154649,
+          0.7785124451819506
+        ],
+        "high_severity_rate": 0.3090909090909091,
+        "high_severity_rate_ci95": [
+          0.24359343748041756,
+          0.3832757701082335
+        ],
+        "severity_counts": {
+          "medium": 61,
+          "low": 6,
+          "high": 51,
+          "none": 43,
+          "unknown": 4
+        },
+        "primary_error_counts": {
+          "insertion": 87,
+          "content_replacement": 11,
+          "none": 43,
+          "unknown": 4,
+          "silence_text": 20
+        }
+      },
+      "javis": {
+        "total": 110,
+        "hallucination_rate": 0.9,
+        "hallucination_rate_ci95": [
+          0.8297634281701123,
+          0.9432404649585859
+        ],
+        "high_severity_rate": 0.36363636363636365,
+        "high_severity_rate_ci95": [
+          0.27975087737355164,
+          0.45672506815075586
+        ],
+        "severity_counts": {
+          "medium": 59,
+          "high": 40,
+          "none": 11
+        },
+        "primary_error_counts": {
+          "insertion": 87,
+          "silence_text": 10,
+          "none": 11,
+          "content_replacement": 2
+        }
+      }
+    },
+    "file": {
+      "voxtral": {
+        "media_148280_1767762915627.mp3": {
+          "hallucination_rate": 0.8,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "medium": 12,
+            "none": 3
+          },
+          "primary_error_counts": {
+            "insertion": 12,
+            "none": 3
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "media_148284_1767766514646 (1).mp3": {
+          "hallucination_rate": 0.9333333333333333,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "low": 6,
+            "medium": 8,
+            "none": 1
+          },
+          "primary_error_counts": {
+            "insertion": 14,
+            "none": 1
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "media_148393_1767860211615 (1).mp3": {
+          "hallucination_rate": 0.9333333333333333,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "medium": 14,
+            "none": 1
+          },
+          "primary_error_counts": {
+            "insertion": 14,
+            "none": 1
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "media_148394_1767860189485 (1).mp3": {
+          "hallucination_rate": 0.9333333333333333,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "medium": 14,
+            "none": 1
+          },
+          "primary_error_counts": {
+            "insertion": 14,
+            "none": 1
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "media_148414_1767922241264 (1).mp3": {
+          "hallucination_rate": 0.9333333333333333,
+          "high_severity_rate": 0.9333333333333333,
+          "severity_counts": {
+            "high": 14,
+            "none": 1
+          },
+          "primary_error_counts": {
+            "content_replacement": 3,
+            "silence_text": 9,
+            "insertion": 2,
+            "none": 1
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "media_148439_1767926711644 (1).mp3": {
+          "hallucination_rate": 0.9333333333333333,
+          "high_severity_rate": 0.9333333333333333,
+          "severity_counts": {
+            "high": 14,
+            "none": 1
+          },
+          "primary_error_counts": {
+            "insertion": 14,
+            "none": 1
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "media_148954_1768789819598 (1).mp3": {
+          "hallucination_rate": 0.8666666666666667,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "medium": 13,
+            "none": 2
+          },
+          "primary_error_counts": {
+            "insertion": 13,
+            "none": 2
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "media_149291_1769069811005.mp3": {
+          "hallucination_rate": 0.0,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "none": 15
+          },
+          "primary_error_counts": {
+            "none": 15
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "media_149733_1769589919400.mp3": {
+          "hallucination_rate": 0.8,
+          "high_severity_rate": 0.8,
+          "severity_counts": {
+            "high": 12,
+            "none": 3
+          },
+          "primary_error_counts": {
+            "insertion": 4,
+            "content_replacement": 8,
+            "none": 3
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "silence_60s.wav": {
+          "hallucination_rate": 0.7333333333333333,
+          "high_severity_rate": 0.7333333333333333,
+          "severity_counts": {
+            "unknown": 2,
+            "high": 11,
+            "none": 2
+          },
+          "primary_error_counts": {
+            "unknown": 2,
+            "silence_text": 11,
+            "none": 2
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "stochastic_noise_60s.wav": {
+          "hallucination_rate": 0.0,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "unknown": 2,
+            "none": 13
+          },
+          "primary_error_counts": {
+            "unknown": 2,
+            "none": 13
+          },
+          "distinct_transcript_hashes": 1
+        }
+      },
+      "javis": {
+        "media_148280_1767762915627.mp3": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 0.2,
+          "severity_counts": {
+            "medium": 8,
+            "high": 2
+          },
+          "primary_error_counts": {
+            "insertion": 10
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "media_148284_1767766514646 (1).mp3": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "medium": 10
+          },
+          "primary_error_counts": {
+            "insertion": 10
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "media_148393_1767860211615 (1).mp3": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 0.3,
+          "severity_counts": {
+            "medium": 7,
+            "high": 3
+          },
+          "primary_error_counts": {
+            "insertion": 9,
+            "content_replacement": 1
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "media_148394_1767860189485 (1).mp3": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "medium": 10
+          },
+          "primary_error_counts": {
+            "insertion": 10
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "media_148414_1767922241264 (1).mp3": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "medium": 10
+          },
+          "primary_error_counts": {
+            "insertion": 10
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "media_148439_1767926711644 (1).mp3": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 0.6,
+          "severity_counts": {
+            "high": 6,
+            "medium": 4
+          },
+          "primary_error_counts": {
+            "insertion": 9,
+            "content_replacement": 1
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "media_148954_1768789819598 (1).mp3": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 0.6,
+          "severity_counts": {
+            "high": 6,
+            "medium": 4
+          },
+          "primary_error_counts": {
+            "insertion": 10
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "media_149291_1769069811005.mp3": {
+          "hallucination_rate": 0.9,
+          "high_severity_rate": 0.4,
+          "severity_counts": {
+            "high": 4,
+            "medium": 5,
+            "none": 1
+          },
+          "primary_error_counts": {
+            "insertion": 9,
+            "none": 1
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "media_149733_1769589919400.mp3": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 0.9,
+          "severity_counts": {
+            "high": 9,
+            "medium": 1
+          },
+          "primary_error_counts": {
+            "insertion": 10
+          },
+          "distinct_transcript_hashes": 10
+        },
+        "silence_60s.wav": {
+          "hallucination_rate": 1.0,
+          "high_severity_rate": 1.0,
+          "severity_counts": {
+            "high": 10
+          },
+          "primary_error_counts": {
+            "silence_text": 10
+          },
+          "distinct_transcript_hashes": 1
+        },
+        "stochastic_noise_60s.wav": {
+          "hallucination_rate": 0.0,
+          "high_severity_rate": 0.0,
+          "severity_counts": {
+            "none": 10
+          },
+          "primary_error_counts": {
+            "none": 10
+          },
+          "distinct_transcript_hashes": 1
+        }
+      }
+    }
+  }
+}

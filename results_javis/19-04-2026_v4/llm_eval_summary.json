@@ -1,0 +1,25 @@
+{
+    "run_dir": "results_javis\\19-04-2026_v4",
+    "model_used": "llama-3.3-70b-versatile",
+    "total_files": 11,
+    "evaluated_files": 11,
+    "with_gt_timestamped": 9,
+    "without_gt_timestamped": 2,
+    "hallucination_rate": 0.8182,
+    "manual_review_rate": 0.9091,
+    "error_distribution": {
+        "insertion": 8,
+        "none": 2,
+        "silence_text": 1
+    },
+    "severity_distribution": {
+        "medium": 6,
+        "high": 3,
+        "none": 2
+    },
+    "existing_metrics": {
+        "avg_cer": "44.50%",
+        "avg_inference_rtf": 0.005,
+        "hrs": 0.0
+    }
+}

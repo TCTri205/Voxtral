@@ -1,0 +1,21 @@
+{
+    "run_dir": "results\\19-04-2026_v9",
+    "model_used": "llama-3.3-70b-versatile",
+    "total_files": 11,
+    "evaluated_files": 11,
+    "with_gt_timestamped": 9,
+    "without_gt_timestamped": 2,
+    "hallucination_rate": 0.0,
+    "manual_review_rate": 1.0,
+    "error_distribution": {
+        "none": 11
+    },
+    "severity_distribution": {
+        "none": 11
+    },
+    "existing_metrics": {
+        "avg_cer": "45.03%",
+        "avg_inference_rtf": 1.67,
+        "hrs": 0.0
+    }
+}

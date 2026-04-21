@@ -1,0 +1,133 @@
+[
+    {
+        "file": "media_148280_1767762915627.mp3",
+        "avg_rms": 0.022824183106422424,
+        "max_rms": 0.13177157938480377,
+        "avg_flatness": 0.04909823462367058,
+        "avg_centroid": 999.5086969440026,
+        "avg_rolloff": 1936.7823981629392,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "media_148284_1767766514646 (1).mp3",
+        "avg_rms": 0.01112314686179161,
+        "max_rms": 0.052168477326631546,
+        "avg_flatness": 0.09022089093923569,
+        "avg_centroid": 1245.4733237395699,
+        "avg_rolloff": 2288.5680379746836,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "media_148393_1767860211615 (1).mp3",
+        "avg_rms": 0.011638736352324486,
+        "max_rms": 0.053087297827005386,
+        "avg_flatness": 0.12486376613378525,
+        "avg_centroid": 1401.7685621340174,
+        "avg_rolloff": 2554.054317331671,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "media_148394_1767860189485 (1).mp3",
+        "avg_rms": 0.013871604576706886,
+        "max_rms": 0.047669507563114166,
+        "avg_flatness": 0.09865112602710724,
+        "avg_centroid": 1274.8603020493094,
+        "avg_rolloff": 2402.335761758691,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "media_148414_1767922241264 (1).mp3",
+        "avg_rms": 0.03000675141811371,
+        "max_rms": 0.12548473477363586,
+        "avg_flatness": 0.07179367542266846,
+        "avg_centroid": 1269.4969208441498,
+        "avg_rolloff": 2364.236735611511,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "media_148439_1767926711644 (1).mp3",
+        "avg_rms": 0.025457441806793213,
+        "max_rms": 0.1412975937128067,
+        "avg_flatness": 0.07130980491638184,
+        "avg_centroid": 1108.8362836217061,
+        "avg_rolloff": 2140.588561100746,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "media_148954_1768789819598 (1).mp3",
+        "avg_rms": 0.011838874779641628,
+        "max_rms": 0.056630656123161316,
+        "avg_flatness": 0.09579508751630783,
+        "avg_centroid": 1236.188260868151,
+        "avg_rolloff": 2271.9010416666665,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "media_149291_1769069811005.mp3",
+        "avg_rms": 0.03922722861170769,
+        "max_rms": 0.18249815702438354,
+        "avg_flatness": 0.040769029408693314,
+        "avg_centroid": 1003.7239697478942,
+        "avg_rolloff": 1890.8452052696077,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "media_149733_1769589919400.mp3",
+        "avg_rms": 0.02734288200736046,
+        "max_rms": 0.3102390170097351,
+        "avg_flatness": 0.08070400357246399,
+        "avg_centroid": 1069.6769343242277,
+        "avg_rolloff": 2050.323180612846,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)",
+            "bandwidth hẹp (low bandwidth)"
+        ]
+    },
+    {
+        "file": "silence_60s.wav",
+        "avg_rms": 0.001811086549423635,
+        "max_rms": 0.0018666612450033426,
+        "avg_flatness": 0.5612314939498901,
+        "avg_centroid": 3996.252649227392,
+        "avg_rolloff": 6798.390858208955,
+        "reasons": [
+            "âm thanh bị nhỏ (low volume)",
+            "âm thanh bị rè (noisy/distorted)"
+        ]
+    },
+    {
+        "file": "stochastic_noise_60s.wav",
+        "avg_rms": 0.0811595618724823,
+        "max_rms": 0.15611883997917175,
+        "avg_flatness": 0.561042070388794,
+        "avg_centroid": 4000.2112113964995,
+        "avg_rolloff": 6802.105543710021,
+        "reasons": [
+            "âm thanh bị rè (noisy/distorted)"
+        ]
+    }
+]

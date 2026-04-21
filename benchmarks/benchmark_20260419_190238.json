@@ -1,0 +1,43 @@
+{
+    "timestamp_start": "20260419_190238",
+    "timestamp_end": "2026-04-19 19:02:38",
+    "runs_passed": 5,
+    "runs_aggregated": 5,
+    "averages": {
+        "total_rtf": 1.6946727272727273,
+        "inference_rtf": 1.678127272727273,
+        "cer_percentage": 45.02636363636363
+    },
+    "details": [
+        {
+            "dir": "results\\18-04-2026_v1",
+            "avg_total_rtf": 1.6761818181818184,
+            "avg_inf_rtf": 1.6600000000000001,
+            "avg_cer": 0.4502636363636363
+        },
+        {
+            "dir": "results\\18-04-2026_v2",
+            "avg_total_rtf": 1.7293636363636364,
+            "avg_inf_rtf": 1.7133636363636364,
+            "avg_cer": 0.4502636363636363
+        },
+        {
+            "dir": "results\\18-04-2026_v3",
+            "avg_total_rtf": 1.681727272727273,
+            "avg_inf_rtf": 1.6640909090909088,
+            "avg_cer": 0.4502636363636363
+        },
+        {
+            "dir": "results\\18-04-2026_v4",
+            "avg_total_rtf": 1.6626363636363637,
+            "avg_inf_rtf": 1.6465454545454543,
+            "avg_cer": 0.4502636363636363
+        },
+        {
+            "dir": "results\\18-04-2026_v5",
+            "avg_total_rtf": 1.7234545454545454,
+            "avg_inf_rtf": 1.7066363636363633,
+            "avg_cer": 0.4502636363636363
+        }
+    ]
+}

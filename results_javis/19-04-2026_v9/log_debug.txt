@@ -1,0 +1,21 @@
+New batch run: results_javis\19-04-2026_v9
+Found 11 files to process.
+[1/11] media_148280_1767762915627.mp3 ... Done (Total RTF: 1.007, Inference RTF: 0.004)
+[2/11] media_148284_1767766514646 (1).mp3 ... Done (Total RTF: 1.01, Inference RTF: 0.007)
+[3/11] media_148393_1767860211615 (1).mp3 ... Done (Total RTF: 1.019, Inference RTF: 0.01)
+[4/11] media_148394_1767860189485 (1).mp3 ... Done (Total RTF: 1.016, Inference RTF: 0.009)
+[5/11] media_148414_1767922241264 (1).mp3 ... Done (Total RTF: 1.009, Inference RTF: 0.006)
+[6/11] media_148439_1767926711644 (1).mp3 ... Done (Total RTF: 1.014, Inference RTF: 0.008)
+[7/11] media_148954_1768789819598 (1).mp3 ... Done (Total RTF: 1.005, Inference RTF: 0.003)
+[8/11] media_149291_1769069811005.mp3 ... Done (Total RTF: 1.003, Inference RTF: 0.002)
+[9/11] media_149733_1769589919400.mp3 ... Done (Total RTF: 1.005, Inference RTF: 0.003)
+[10/11] silence_60s.wav ... Done (Total RTF: 1.007, Inference RTF: 0.004)
+[11/11] stochastic_noise_60s.wav ... Done (Total RTF: 1.011, Inference RTF: 0.008)
+
+Batch complete. results in results_javis\19-04-2026_v9\results.json
+Processed: 11/11 success
+Avg Total RTF: 1.010
+Avg Inference RTF: 0.006
+
+Generating evaluation report: results_javis\19-04-2026_v9\report.md ...
+Report generated successfully.

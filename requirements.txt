@@ -1,0 +1,14 @@
+librosa
+numpy
+websockets>=15.0.1,<16.0
+scipy
+python-dotenv
+soundfile
+huggingface_hub
+fastapi
+uvicorn
+bitsandbytes
+transformers>=5.2.0
+mistral-common[audio]>=1.9.1
+openai>=1.40.0
+pydantic>=2.0

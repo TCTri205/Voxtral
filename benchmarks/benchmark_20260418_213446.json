@@ -1,0 +1,31 @@
+{
+    "timestamp_start": "20260418_213446",
+    "timestamp_end": "2026-04-18 21:35:46",
+    "runs_passed": 3,
+    "runs_aggregated": 3,
+    "averages": {
+        "total_rtf": 1.7105387205387206,
+        "inference_rtf": 1.6934747474747474,
+        "cer_percentage": 51.69693602693602
+    },
+    "details": [
+        {
+            "dir": "results\\18-04-2026_v1",
+            "avg_total_rtf": 1.6925555555555556,
+            "avg_inf_rtf": 1.6755555555555555,
+            "avg_cer": 0.5503222222222222
+        },
+        {
+            "dir": "results\\18-04-2026_v2",
+            "avg_total_rtf": 1.7573333333333332,
+            "avg_inf_rtf": 1.740777777777778,
+            "avg_cer": 0.5503222222222222
+        },
+        {
+            "dir": "results\\18-04-2026_v3",
+            "avg_total_rtf": 1.681727272727273,
+            "avg_inf_rtf": 1.6640909090909088,
+            "avg_cer": 0.4502636363636363
+        }
+    ]
+}

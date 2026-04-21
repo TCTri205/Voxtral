@@ -1,0 +1,44 @@
+{
+    "engine": "javis",
+    "timestamp_start": "20260420_164938",
+    "timestamp_end": "2026-04-20 16:51:40",
+    "runs_passed": 5,
+    "runs_aggregated": 5,
+    "averages": {
+        "total_rtf": 1.0105090909090908,
+        "inference_rtf": 0.005763636363636364,
+        "cer_percentage": 38.974363636363634
+    },
+    "details": [
+        {
+            "dir": "results_javis\\19-04-2026_v1",
+            "avg_total_rtf": 1.0093636363636362,
+            "avg_inf_rtf": 0.005545454545454545,
+            "avg_cer": 0.3707181818181818
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v2",
+            "avg_total_rtf": 1.011090909090909,
+            "avg_inf_rtf": 0.005363636363636364,
+            "avg_cer": 0.39420909090909095
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v3",
+            "avg_total_rtf": 1.0108181818181818,
+            "avg_inf_rtf": 0.006363636363636364,
+            "avg_cer": 0.27719999999999995
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v4",
+            "avg_total_rtf": 1.010181818181818,
+            "avg_inf_rtf": 0.005454545454545454,
+            "avg_cer": 0.4449727272727273
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v5",
+            "avg_total_rtf": 1.011090909090909,
+            "avg_inf_rtf": 0.006090909090909091,
+            "avg_cer": 0.4616181818181818
+        }
+    ]
+}

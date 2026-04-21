@@ -1,0 +1,74 @@
+{
+    "engine": "javis",
+    "timestamp_start": "20260419_203422",
+    "timestamp_end": "2026-04-19 22:44:22",
+    "runs_passed": 10,
+    "runs_aggregated": 10,
+    "averages": {
+        "total_rtf": 1.010281818181818,
+        "inference_rtf": 0.005781818181818182,
+        "cer_percentage": 34.6650909090909
+    },
+    "details": [
+        {
+            "dir": "results_javis\\19-04-2026_v1",
+            "avg_total_rtf": 1.0093636363636362,
+            "avg_inf_rtf": 0.005545454545454545,
+            "avg_cer": 0.3707181818181818
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v2",
+            "avg_total_rtf": 1.011090909090909,
+            "avg_inf_rtf": 0.005363636363636364,
+            "avg_cer": 0.39420909090909095
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v3",
+            "avg_total_rtf": 1.0108181818181818,
+            "avg_inf_rtf": 0.006363636363636364,
+            "avg_cer": 0.27719999999999995
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v4",
+            "avg_total_rtf": 1.010181818181818,
+            "avg_inf_rtf": 0.005454545454545454,
+            "avg_cer": 0.4449727272727273
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v5",
+            "avg_total_rtf": 1.011090909090909,
+            "avg_inf_rtf": 0.006090909090909091,
+            "avg_cer": 0.4616181818181818
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v6",
+            "avg_total_rtf": 1.0110909090909088,
+            "avg_inf_rtf": 0.006,
+            "avg_cer": 0.2491
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v7",
+            "avg_total_rtf": 1.0093636363636362,
+            "avg_inf_rtf": 0.005818181818181819,
+            "avg_cer": 0.3235909090909091
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v8",
+            "avg_total_rtf": 1.0093636363636362,
+            "avg_inf_rtf": 0.005454545454545455,
+            "avg_cer": 0.37894545454545453
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v9",
+            "avg_total_rtf": 1.0096363636363637,
+            "avg_inf_rtf": 0.005818181818181819,
+            "avg_cer": 0.26826363636363637
+        },
+        {
+            "dir": "results_javis\\19-04-2026_v10",
+            "avg_total_rtf": 1.0108181818181818,
+            "avg_inf_rtf": 0.005909090909090909,
+            "avg_cer": 0.29789090909090904
+        }
+    ]
+}

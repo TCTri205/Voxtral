@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.env
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+.kilo/
+.qwen/
+# results*.json
+# audio/silence_10s.wav
+# audio/white_noise_5s.wav
+# batch results
+# results_javis/
+# benchmarks_javis/
+# results/
+# benchmarks/
