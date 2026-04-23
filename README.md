@@ -81,7 +81,7 @@ python evaluate_metrics.py results/latest/results.json --gt ground_truth.json
 
 Để biết thêm chi tiết về cách thiết lập server, tham số CLI và quy trình benchmark nâng cao, vui lòng tham khảo:
 
-- [**Hướng dẫn Thiết lập và Sử dụng Voxtral ASR**](README_SETUP.md)
+- [**Hướng dẫn Thiết lập và Sử dụng Voxtral ASR**](README_VOXTRAL.md)
 - [**Hướng dẫn Sử dụng Javis ASR**](README_JAVIS.md)
 
 ---
