@@ -8,10 +8,11 @@ import numpy as np
 import torch
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from transformers import VoxtralRealtimeForConditionalGeneration, AutoProcessor
+from transformers import VoxtralRealtimeForConditionalGeneration, AutoProcessor, TextIteratorStreamer
 from mistral_common.tokens.tokenizers.audio import Audio
 import argparse
 import librosa # Added for server-side file loading
+import threading
 
 app = FastAPI()
 
@@ -19,6 +20,10 @@ app = FastAPI()
 model = None
 processor = None
 model_id_global = None
+
+# VAD global state
+vad_model = None
+vad_utils = None
 
 # ---------------------------------------------------------------------------
 # Server revision fingerprint — printed at startup for Colab verification
@@ -54,11 +59,17 @@ def _slog(conn_id: str, msg: str):
 
 
 def load_voxtral_model(model_id: str, load_in_4bit: bool = False):
-    global model, processor, model_id_global
+    global model, processor, model_id_global, vad_model, vad_utils
     model_id_global = model_id
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"[startup] fingerprint: {_server_fingerprint()}", flush=True)
     print(f"[startup] Loading model: {model_id} on {device}...", flush=True)
+
+    # Load Silero VAD
+    print("[startup] Loading Silero VAD...", flush=True)
+    vad_model, outputs = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', trust_repo=True)
+    vad_utils = outputs
+    print("[startup] Silero VAD loaded.", flush=True)
 
     quantization_config = None
     if load_in_4bit and device == "cuda":
@@ -84,7 +95,7 @@ def load_voxtral_model(model_id: str, load_in_4bit: bool = False):
     print(f"[startup]   device: {next(model.parameters()).device}", flush=True)
 
 
-def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str) -> str:
+def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> str:
     """Blocking inference — runs in a thread pool to keep the event loop free."""
     t0 = time.time()
     _slog(conn_id, f"inference_started  audio_bytes={len(audio_bytes)}")
@@ -101,34 +112,66 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str) 
     # Resample to the rate the feature extractor expects (usually 16kHz, but future-proof)
     audio_obj.resample(processor.feature_extractor.sampling_rate)
 
-    inputs = processor(audio_obj.audio_array, return_tensors="pt")
-    inputs = inputs.to(model.device, dtype=model.dtype)
+    # Force Japanese decoding via text prompt injection
+    # This mitigates "Language Collapse" where the model reverts to English on noisy audio.
+    inputs = processor(text="[JAPANESE]", audio=audio_obj.audio_array, return_tensors="pt")
+    inputs = inputs.to(model.device)
+    for k, v in inputs.items():
+        if torch.is_floating_point(v):
+            inputs[k] = v.to(model.dtype)
 
     temperature = float(session_config.get("temperature", 0.0))
     do_sample = temperature > 0.0
 
-    with torch.inference_mode():
-        generated_ids = model.generate(
-            **inputs,
-            max_new_tokens=512,
-            do_sample=do_sample,
-            temperature=temperature if do_sample else None,
-        )
+    # Setup streamer
+    streamer = TextIteratorStreamer(processor.tokenizer, skip_special_tokens=True, skip_prompt=True)
+    
+    generation_kwargs = dict(
+        **inputs,
+        max_new_tokens=512,
+        do_sample=do_sample,
+        temperature=temperature if do_sample else None,
+        streamer=streamer,
+    )
 
-    # Skip the prompt tokens when decoding
-    input_len = inputs["input_ids"].shape[1] if "input_ids" in inputs else 0
-    transcript = processor.batch_decode(
-        generated_ids[:, input_len:], skip_special_tokens=True
-    )[0].strip()
+    # Run generation in a separate thread because streamer.iterator is blocking
+    error_container = []
+    
+    def safe_generate():
+        try:
+            with torch.inference_mode():
+                model.generate(**generation_kwargs)
+        except Exception as e:
+            error_container.append(e)
+            # End the streamer so the main loop doesn't hang
+            streamer.end()
+    
+    thread = threading.Thread(target=safe_generate)
+    thread.start()
+
+    # Collect tokens and call on_delta callback
+    full_transcript = ""
+    for new_text in streamer:
+        if on_delta:
+            on_delta(new_text)
+        full_transcript += new_text
+
+    # Check for errors in the thread
+    if error_container:
+        e = error_container[0]
+        _slog(conn_id, f"inference_thread_error: {e}")
+        raise e
+
+    transcript = full_transcript.strip()
 
     elapsed = time.time() - t0
     _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}")
     return transcript
 
 
-async def run_inference(audio_bytes: bytes, session_config: dict, conn_id: str) -> str:
+async def run_inference(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> str:
     """Async wrapper that offloads blocking inference to a thread pool."""
-    return await asyncio.to_thread(_run_inference_sync, audio_bytes, session_config, conn_id)
+    return await asyncio.to_thread(_run_inference_sync, audio_bytes, session_config, conn_id, on_delta)
 
 
 @app.get("/v1/models")
@@ -148,6 +191,7 @@ async def list_models():
 
 @app.websocket("/v1/realtime")
 async def realtime_endpoint(websocket: WebSocket):
+    loop = asyncio.get_running_loop()
     conn_id = uuid.uuid4().hex[:8]
     await websocket.accept()
     _slog(conn_id, "websocket_accepted")
@@ -210,31 +254,65 @@ async def realtime_endpoint(websocket: WebSocket):
                 _slog(conn_id, f"commit_received  buffer_bytes={buf_size}  total_appended={accumulated_bytes}")
                 if buf_size > 0:
                     try:
-                        # Launch inference in background thread
-                        inference_task = asyncio.create_task(
-                            run_inference(bytes(audio_buffer), session_config, conn_id)
-                        )
-                        # Send keepalive pings while inference is running
-                        # so ngrok / reverse proxies don't drop the connection
-                        keepalive_n = 0
-                        while not inference_task.done():
-                            await asyncio.sleep(5)
-                            if not inference_task.done():
-                                keepalive_n += 1
-                                await websocket.send_text(
-                                    json.dumps({"type": "session.keepalive"})
+                        # Convert to float tensor for VAD
+                        audio_np = np.frombuffer(audio_buffer, dtype=np.int16).astype(np.float32) / 32767.0
+                        audio_tensor = torch.from_numpy(audio_np)
+                        
+                        # VAD check
+                        get_speech_timestamps = vad_utils[0]
+                        speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=16000)
+                        
+                        if not speech_timestamps:
+                            _slog(conn_id, "VAD: silence detected, skipping inference")
+                            await websocket.send_text(
+                                json.dumps(
+                                    {
+                                        "type": "response.audio_transcript.done",
+                                        "transcript": "",
+                                    }
                                 )
-                                _slog(conn_id, f"keepalive_sent  n={keepalive_n}")
-                        transcript = inference_task.result()
-                        await websocket.send_text(
-                            json.dumps(
-                                {
-                                    "type": "response.audio_transcript.done",
-                                    "transcript": transcript,
-                                }
                             )
-                        )
-                        _slog(conn_id, f"transcript_sent  len={len(transcript)}")
+                        else:
+                            _slog(conn_id, f"VAD: speech detected ({len(speech_timestamps)} segments), starting inference")
+                            # Launch inference in background thread
+                            delta_futures = []
+                            def on_delta_callback(delta):
+                                fut = asyncio.run_coroutine_threadsafe(
+                                    websocket.send_text(
+                                        json.dumps({"type": "response.audio_transcript.delta", "delta": delta})
+                                    ),
+                                    loop
+                                )
+                                delta_futures.append(fut)
+
+                            inference_task = asyncio.create_task(
+                                run_inference(bytes(audio_buffer), session_config, conn_id, on_delta_callback)
+                            )
+                            # Send keepalive pings while inference is running
+                            # so ngrok / reverse proxies don't drop the connection
+                            keepalive_n = 0
+                            while not inference_task.done():
+                                await asyncio.sleep(5)
+                                if not inference_task.done():
+                                    keepalive_n += 1
+                                    await websocket.send_text(
+                                        json.dumps({"type": "session.keepalive"})
+                                    )
+                                    _slog(conn_id, f"keepalive_sent  n={keepalive_n}")
+                            transcript = inference_task.result()
+                            
+                            # Flush delta messages before sending done
+                            if delta_futures:
+                                await asyncio.gather(*(asyncio.wrap_future(f) for f in delta_futures))
+                            await websocket.send_text(
+                                json.dumps(
+                                    {
+                                        "type": "response.audio_transcript.done",
+                                        "transcript": transcript,
+                                    }
+                                )
+                            )
+                            _slog(conn_id, f"transcript_sent  len={len(transcript)}")
                     except Exception as e:
                         _slog(conn_id, f"inference_error  {type(e).__name__}: {e}")
                         import traceback; traceback.print_exc()

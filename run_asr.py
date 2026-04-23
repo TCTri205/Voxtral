@@ -187,8 +187,21 @@ async def transcription_client(
                 data = json.loads(message)
                 last_msg_type = data["type"]
 
+                if data["type"] == "response.audio_transcript.delta":
+                    delta = data.get("delta", "")
+                    if delta:
+                        print(delta, end="", flush=True)
+                        transcript += delta
+                    continue
+
                 if data["type"] == "response.audio_transcript.done":
-                    transcript = data['transcript']
+                    # Final transcript might be different from accumulated deltas if server cleans it up
+                    # But usually they match. We print a newline here.
+                    final_transcript = data.get('transcript', '')
+                    if not transcript:
+                         print(final_transcript, end="", flush=True)
+                    transcript = final_transcript
+                    print() # End of line
                     t_received = time.time()
                     break
 
