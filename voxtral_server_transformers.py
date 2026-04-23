@@ -112,9 +112,9 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     # Resample to the rate the feature extractor expects (usually 16kHz, but future-proof)
     audio_obj.resample(processor.feature_extractor.sampling_rate)
 
-    # Force Japanese decoding via text prompt injection
-    # This mitigates "Language Collapse" where the model reverts to English on noisy audio.
-    inputs = processor(text="[JAPANESE]", audio=audio_obj.audio_array, return_tensors="pt")
+    # Bias decoding toward Japanese with a short Japanese transcription prompt.
+    # This is text priming, not a hard language lock.
+    inputs = processor(text="日本語で書き起こしてください。", audio=audio_obj.audio_array, return_tensors="pt")
     inputs = inputs.to(model.device)
     for k, v in inputs.items():
         if torch.is_floating_point(v):
