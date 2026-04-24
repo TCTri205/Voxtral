@@ -28,7 +28,7 @@ vad_utils = None
 # ---------------------------------------------------------------------------
 # Server revision fingerprint — printed at startup for Colab verification
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-04-18.1"  # bump this string on every push
+_SERVER_VERSION = "2026-04-24.1"  # bump this string on every push
 
 
 def _server_fingerprint() -> str:
@@ -200,6 +200,10 @@ async def realtime_endpoint(websocket: WebSocket):
     session_config = {"temperature": 0.0, "transcription_delay_ms": 480}
     accumulated_bytes = 0
 
+    # VAD state for this connection (Priority 1)
+    speech_detected = False
+    last_vad_pos = 0
+
     try:
         while True:
             message_text = await websocket.receive_text()
@@ -217,6 +221,8 @@ async def realtime_endpoint(websocket: WebSocket):
 
             if msg_type == "session.update":
                 session_config.update(data.get("session", {}))
+                # Note: transcription_delay_ms is currently a no-op in this implementation
+                # but kept for protocol compatibility.
                 _slog(conn_id, f"session_update  config={session_config}")
 
             elif msg_type == "input_audio_buffer.append":
@@ -225,6 +231,23 @@ async def realtime_endpoint(websocket: WebSocket):
                     chunk_bytes = base64.b64decode(audio_b64)
                     audio_buffer.extend(chunk_bytes)
                     accumulated_bytes += len(chunk_bytes)
+
+                    # Incremental VAD check (Priority 1)
+                    # Run if we have at least 1536 samples (3072 bytes) which is ~96ms
+                    # Silero VAD works well on 30ms-100ms chunks.
+                    if not speech_detected and (len(audio_buffer) - last_vad_pos) >= 3072:
+                        try:
+                            check_bytes = audio_buffer[last_vad_pos:]
+                            audio_np = np.frombuffer(check_bytes, dtype=np.int16).astype(np.float32) / 32767.0
+                            audio_tensor = torch.from_numpy(audio_np)
+                            get_speech_timestamps = vad_utils[0]
+                            speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=16000)
+                            if speech_timestamps:
+                                speech_detected = True
+                                _slog(conn_id, f"incremental_VAD: speech_detected at {accumulated_bytes} bytes")
+                            last_vad_pos = len(audio_buffer)
+                        except Exception as e:
+                            _slog(conn_id, f"incremental_VAD_error: {e}")
 
             elif msg_type == "input_audio_buffer.from_path":
                 file_path = data.get("path", "")
@@ -238,6 +261,17 @@ async def realtime_endpoint(websocket: WebSocket):
                         audio_buffer.extend(chunk_bytes)
                         accumulated_bytes += len(chunk_bytes)
                         _slog(conn_id, f"loaded_bytes  count={len(chunk_bytes)}")
+
+                        # Trigger speech detection check for the loaded file
+                        if not speech_detected:
+                            audio_np_vad = np.frombuffer(chunk_bytes, dtype=np.int16).astype(np.float32) / 32767.0
+                            audio_tensor = torch.from_numpy(audio_np_vad)
+                            get_speech_timestamps = vad_utils[0]
+                            speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=16000)
+                            if speech_timestamps:
+                                speech_detected = True
+                                _slog(conn_id, "file_VAD: speech_detected in loaded path")
+                            last_vad_pos = len(audio_buffer)
                     except Exception as e:
                         _slog(conn_id, f"load_error  path={file_path} error={e}")
                         await websocket.send_text(
@@ -254,16 +288,18 @@ async def realtime_endpoint(websocket: WebSocket):
                 _slog(conn_id, f"commit_received  buffer_bytes={buf_size}  total_appended={accumulated_bytes}")
                 if buf_size > 0:
                     try:
-                        # Convert to float tensor for VAD
-                        audio_np = np.frombuffer(audio_buffer, dtype=np.int16).astype(np.float32) / 32767.0
-                        audio_tensor = torch.from_numpy(audio_np)
+                        # Final VAD check if speech hasn't been detected yet (Priority 1)
+                        if not speech_detected:
+                            _slog(conn_id, "VAD: no speech detected in increments, running final check on full buffer")
+                            audio_np = np.frombuffer(audio_buffer, dtype=np.int16).astype(np.float32) / 32767.0
+                            audio_tensor = torch.from_numpy(audio_np)
+                            get_speech_timestamps = vad_utils[0]
+                            speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=16000)
+                            if speech_timestamps:
+                                speech_detected = True
                         
-                        # VAD check
-                        get_speech_timestamps = vad_utils[0]
-                        speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=16000)
-                        
-                        if not speech_timestamps:
-                            _slog(conn_id, "VAD: silence detected, skipping inference")
+                        if not speech_detected:
+                            _slog(conn_id, "VAD: silence confirmed, skipping inference")
                             await websocket.send_text(
                                 json.dumps(
                                     {
@@ -273,7 +309,7 @@ async def realtime_endpoint(websocket: WebSocket):
                                 )
                             )
                         else:
-                            _slog(conn_id, f"VAD: speech detected ({len(speech_timestamps)} segments), starting inference")
+                            _slog(conn_id, "VAD: speech present, starting inference")
                             # Launch inference in background thread
                             delta_futures = []
                             def on_delta_callback(delta):
@@ -322,6 +358,8 @@ async def realtime_endpoint(websocket: WebSocket):
                     finally:
                         audio_buffer = bytearray()
                         accumulated_bytes = 0
+                        speech_detected = False
+                        last_vad_pos = 0
                 else:
                     _slog(conn_id, "commit_received  buffer_empty → sending empty transcript")
                     await websocket.send_text(

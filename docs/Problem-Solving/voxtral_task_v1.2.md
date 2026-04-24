@@ -1,0 +1,21 @@
+# Task: Implement Voxtral Plan v1.2
+
+- [x] **Planning**
+  - [x] Research [voxtral_server_transformers.py](file:///d:/VJ/Voxtral/voxtral_server_transformers.py) for VAD implementation details <!-- id: 0 -->
+  - [x] Research [run_asr.py](file:///d:/VJ/Voxtral/run_asr.py) for transcript handling and metrics <!-- id: 1 -->
+  - [x] Create detailed implementation plan <!-- id: 2 -->
+- [x] **Priority 1: Incremental VAD (Server-side)**
+  - [x] Add session-based VAD state (e.g., `speech_seen`) <!-- id: 3 -->
+  - [x] Update VAD state during `input_audio_buffer.append` <!-- id: 4 -->
+  - [x] Optimize `input_audio_buffer.commit` to skip inference if no speech detected <!-- id: 5 -->
+- [x] **Priority 2: Transcript Consistency (Client-side)**
+  - [x] Update [run_asr.py](file:///d:/VJ/Voxtral/run_asr.py) to handle `final_transcript` explicitly <!-- id: 6 -->
+  - [x] Add logic to print `Final transcript: ...` if it differs from deltas <!-- id: 7 -->
+- [x] **Priority 3: Metrics and Cleanup**
+  - [x] Fix duration-dependent metrics (RTF) in [run_asr.py](file:///d:/VJ/Voxtral/run_asr.py) when duration is unknown <!-- id: 8 -->
+  - [x] Add comments/logs to clarify `transcription_delay_ms` status <!-- id: 9 -->
+- [/] **Verification**
+  - [/] Verify silence path (no inference for silence) <!-- id: 10 -->
+  - [/] Verify transcript consistency (delta vs final) <!-- id: 11 -->
+  - [/] Verify metrics for `--server-audio-dir` cases <!-- id: 12 -->
+  - [ ] Final walkthrough and documentation <!-- id: 13 -->

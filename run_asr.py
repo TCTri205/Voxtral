@@ -196,10 +196,15 @@ async def transcription_client(
 
                 if data["type"] == "response.audio_transcript.done":
                     # Final transcript might be different from accumulated deltas if server cleans it up
-                    # But usually they match. We print a newline here.
                     final_transcript = data.get('transcript', '')
+                    
                     if not transcript:
-                         print(final_transcript, end="", flush=True)
+                        # If no deltas were received (e.g. silence), print the final result directly
+                        print(final_transcript, end="", flush=True)
+                    elif final_transcript and final_transcript != transcript:
+                        # Priority 2: If there's a discrepancy, show the final canonical version
+                        print(f"\n[Final] {final_transcript}", end="", flush=True)
+                    
                     transcript = final_transcript
                     print() # End of line
                     t_received = time.time()
@@ -234,8 +239,8 @@ async def transcription_client(
                 "stream_time": round(stream_time, 2),
                 "wait_after_commit": round(wait_after_commit, 3),
                 "total_time": round(total_time, 2),
-                "total_rtf": round(total_time / duration, 3) if duration > 0 else 0,
-                "inference_rtf": round(wait_after_commit / duration, 3) if duration > 0 else 0,
+                "total_rtf": round(total_time / duration, 3) if duration > 0 else None,
+                "inference_rtf": round(wait_after_commit / duration, 3) if duration > 0 else None,
                 "keepalive_count": keepalive_count,
                 "chunks_sent": chunks_sent,
                 "bytes_sent": bytes_sent,
@@ -355,7 +360,9 @@ async def main():
             json.dump(results, f, ensure_ascii=False, indent=4)
         
         if res.get("status") == "success":
-            log(f"Done (Total RTF: {res['total_rtf']}, Inference RTF: {res['inference_rtf']})", log_file)
+            total_rtf_str = f"{res['total_rtf']:.3f}" if res['total_rtf'] is not None else "N/A"
+            inf_rtf_str = f"{res['inference_rtf']:.3f}" if res['inference_rtf'] is not None else "N/A"
+            log(f"Done (Total RTF: {total_rtf_str}, Inference RTF: {inf_rtf_str})", log_file)
         else:
             err_details = res.get('error_type')
             if res.get('error_message'):
@@ -365,12 +372,17 @@ async def main():
     # 5. Final Summary
     success_results = [r for r in results if r.get("status") == "success"]
     if success_results:
-        avg_total_rtf = sum(r['total_rtf'] for r in success_results) / len(success_results)
-        avg_inf_rtf = sum(r['inference_rtf'] for r in success_results) / len(success_results)
+        # Avoid division by zero and handle None RTFs (Priority 3)
+        valid_total_rtfs = [r['total_rtf'] for r in success_results if r['total_rtf'] is not None]
+        valid_inf_rtfs = [r['inference_rtf'] for r in success_results if r['inference_rtf'] is not None]
+        
+        avg_total_rtf = sum(valid_total_rtfs) / len(valid_total_rtfs) if valid_total_rtfs else 0
+        avg_inf_rtf = sum(valid_inf_rtfs) / len(valid_inf_rtfs) if valid_inf_rtfs else 0
+        
         log(f"\nBatch complete. results in {results_file}", log_file)
         log(f"Processed: {len(success_results)}/{len(results)} success", log_file)
-        log(f"Avg Total RTF: {avg_total_rtf:.3f}", log_file)
-        log(f"Avg Inference RTF: {avg_inf_rtf:.3f}", log_file)
+        log(f"Avg Total RTF: {avg_total_rtf:.3f}" if valid_total_rtfs else "Avg Total RTF: N/A", log_file)
+        log(f"Avg Inference RTF: {avg_inf_rtf:.3f}" if valid_inf_rtfs else "Avg Inference RTF: N/A", log_file)
 
     # 6. Auto-generate Report
     report_file = output_dir / "report.md"
