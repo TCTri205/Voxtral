@@ -75,6 +75,7 @@ Hệ thống được thiết kế để đo lường qua 3 chế độ:
 | :--- | :--- | :--- |
 | **Realtime Simulation** | `--chunk-interval 0.1` | Đo **Total RTF** (trải nghiệm người dùng cuối). |
 | **Throughput Mode** | `--chunk-interval 0` | Đo **Inference RTF** (năng lực xử lý của GPU). |
+| **Incremental VAD** | (Mặc định) | Server tự động quét giọng nói để bỏ qua im lặng. |
 | **Stress Test** | `--audio_dir [large_set]` | Kiểm tra độ ổn định của tunnel và keepalive. |
 
 ---
@@ -235,7 +236,8 @@ Sau khi hoàn tất, script sẽ tạo file tổng hợp trong thư mục `bench
 - **[Inference Error]**: Xem log server tại `/tmp/voxtral_server.log`.
 - **`--server-audio-dir` trả transcript rỗng**:
   - Xác minh Colab đang chạy đúng revision bằng dòng `[startup] fingerprint:` trong `/tmp/voxtral_server.log`.
-  - Phiên bản debug hiện tại phải hiện `version:2026-04-18.1`.
+  - Phiên bản hiện tại (v1.2) phải hiện `version:2026-04-24.1`.
+  - Nếu thấy log `VAD: silence detected, skipping inference` thì đây là hành vi đúng (không có tiếng nói).
   - Nếu log WebSocket không có `message_received  type='input_audio_buffer.from_path'`, frame `from_path` chưa tới server.
   - Nếu có `message_received ... from_path` nhưng không có `loading_from_path`, kiểm tra `unknown_message_type`.
   - Nếu có `loading_from_path` nhưng fail, đối chiếu `path_not_found` hoặc `load_error` để phân biệt sai path và lỗi decode/file.
