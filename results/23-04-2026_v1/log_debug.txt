@@ -1,0 +1,11 @@
+New batch run: results\23-04-2026_v1
+Found 1 files to process.
+[1/1] media_148414_1767922241264 (1).mp3 ... Done (Total RTF: 2.029, Inference RTF: 2.001)
+
+Batch complete. results in results\23-04-2026_v1\results.json
+Processed: 1/1 success
+Avg Total RTF: 2.029
+Avg Inference RTF: 2.001
+
+Generating evaluation report: results\23-04-2026_v1\report.md ...
+Report generated successfully.

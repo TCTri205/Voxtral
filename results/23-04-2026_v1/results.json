@@ -1,0 +1,20 @@
+[
+    {
+        "file": "media_148414_1767922241264 (1).mp3",
+        "status": "success",
+        "transcript": "Hi, Joseph. I'm sorry.",
+        "duration": 53.36,
+        "connect_time": 0.934,
+        "stream_time": 0.55,
+        "wait_after_commit": 106.784,
+        "total_time": 108.27,
+        "total_rtf": 2.029,
+        "inference_rtf": 2.001,
+        "keepalive_count": 20,
+        "chunks_sent": 534,
+        "bytes_sent": 1707520,
+        "delay_ms": 480,
+        "rf": 0,
+        "cer": "100.00%"
+    }
+]
