@@ -1,0 +1,18 @@
+[
+    {
+        "status": "failed",
+        "error_type": "client_error",
+        "error_message": "server rejected WebSocket connection: HTTP 404",
+        "file": "media_148954_1768789819598 (1).mp3",
+        "rf": 0,
+        "cer": "N/A"
+    },
+    {
+        "status": "failed",
+        "error_type": "client_error",
+        "error_message": "server rejected WebSocket connection: HTTP 404",
+        "file": "media_149291_1769069811005.mp3",
+        "rf": 0,
+        "cer": "N/A"
+    }
+]

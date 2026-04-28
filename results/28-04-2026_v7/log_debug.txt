@@ -1,0 +1,12 @@
+New batch run: results\28-04-2026_v7
+Found 2 files to process.
+[1/2] media_148954_1768789819598 (1).mp3 ... Done (Total RTF: 2.861, Inference RTF: 2.852)
+[2/2] media_149291_1769069811005.mp3 ... Done (Total RTF: 2.452, Inference RTF: 2.447)
+
+Batch complete. results in results\28-04-2026_v7\results.json
+Processed: 2/2 success
+Avg Total RTF: 2.657
+Avg Inference RTF: 2.649
+
+Generating evaluation report: results\28-04-2026_v7\report.md ...
+Report generated successfully.

@@ -1,0 +1,11 @@
+New batch run: results\28-04-2026_v6
+Found 2 files to process.
+[1/2] media_148954_1768789819598 (1).mp3 ... 
+[Client Error] media_148954_1768789819598 (1).mp3: server rejected WebSocket connection: HTTP 404
+Failed (client_error: server rejected WebSocket connection: HTTP 404)
+[2/2] media_149291_1769069811005.mp3 ... 
+[Client Error] media_149291_1769069811005.mp3: server rejected WebSocket connection: HTTP 404
+Failed (client_error: server rejected WebSocket connection: HTTP 404)
+
+Generating evaluation report: results\28-04-2026_v6\report.md ...
+Report generated successfully.
