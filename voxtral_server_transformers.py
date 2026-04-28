@@ -161,15 +161,16 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     # Language hint: Allow client to specify language via session config.
     # Default to Japanese for this deployment (telephone calls).
     # This prevents language collapse when audio quality is poor.
+    # Format tested: "[ja]" is more concise and effective than "[Japanese transcription]"
     language = session_config.get("language", "ja")
     language_prefixes = {
-        "ja": "[Japanese transcription] ",
-        "en": "[English transcription] ",
-        "vi": "[Vietnamese transcription] ",
-        "zh": "[Chinese transcription] ",
-        "ko": "[Korean transcription] ",
+        "ja": "[ja] ",  # Concise language tag - tested to be more effective
+        "en": "[en] ",
+        "vi": "[vi] ",
+        "zh": "[zh] ",
+        "ko": "[ko] ",
     }
-    text_prefix = language_prefixes.get(language, f"[{language} transcription] ")
+    text_prefix = language_prefixes.get(language, f"[{language}] ")
     
     inputs = processor(
         text=text_prefix,
@@ -229,18 +230,27 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     return transcript, elapsed
 
 
-def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn_id: str) -> dict:
+def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn_id: str, log_prefix: str = "") -> dict:
     """
     Check for potential hallucination indicators.
 
+    Args:
+        transcript: The transcribed text
+        audio_duration: Duration of the audio in seconds
+        conn_id: Connection ID for logging
+        log_prefix: Prefix for log messages (e.g., "[Primary]", "[Retry]")
+
     Returns:
-        dict with 'is_suspicious', 'reason', 'severity'
+        dict with 'is_suspicious', 'reasons', 'severity', 'should_reject'
     """
     reasons = []
     severity = "none"
+    should_reject = False  # For high-severity issues, reject outright
 
     transcript_stripped = transcript.strip()
     transcript_len = len(transcript_stripped)
+
+    _slog(conn_id, f"[Guardrail] {log_prefix} Checking: transcript_len={transcript_len}, audio_duration={audio_duration:.1f}s")
 
     # Check 1: Short transcript for long audio (potential truncation or language collapse)
     if audio_duration > 10 and transcript_len < 10:
@@ -254,12 +264,14 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
 
     # Check 3: Detect potential language collapse (English words in Japanese audio context)
     # Common English hallucination patterns when model collapses
-    english_patterns = ["i'm sorry", "hi ", "hello", "thank you", "joseph", "good morning"]
+    english_patterns = ["i'm sorry", "hi ", "hello", "thank you", "joseph", "good morning", 
+                        "now, how", "so this", "just to ask", "how does", "how many times"]
     transcript_lower = transcript_stripped.lower()
     english_matches = sum(1 for pattern in english_patterns if pattern in transcript_lower)
-    if english_matches >= 2 and audio_duration > 5:
-        reasons.append(f"Potential language collapse: detected {english_matches} English pattern(s)")
+    if english_matches >= 1 and audio_duration > 5:
+        reasons.append(f"Language collapse: detected '{[p for p in english_patterns if p in transcript_lower][0]}'")
         severity = "high"
+        should_reject = True  # English in Japanese call = definite hallucination
 
     # Check 4: Detect repetitive/looping patterns (character-level repetition)
     if transcript_len > 50:
@@ -271,7 +283,7 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
             unique_segments = set(segments)
             repetition_ratio = len(unique_segments) / len(segments)
             if repetition_ratio < 0.3:  # Less than 30% unique segments
-                reasons.append(f"Potential looping: only {len(unique_segments)} unique segments out of {len(segments)}")
+                reasons.append(f"Looping: only {len(unique_segments)} unique segments out of {len(segments)}")
                 severity = "high"
 
     # Check 5: Empty transcript for non-silent audio (VAD may have failed)
@@ -282,12 +294,15 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
     is_suspicious = len(reasons) > 0
 
     if is_suspicious:
-        _slog(conn_id, f"[Guardrail] Suspicious output: {'; '.join(reasons)}")
+        _slog(conn_id, f"[Guardrail] {log_prefix}REJECTED - {'; '.join(reasons)} [severity={severity}, reject={should_reject}]")
+    else:
+        _slog(conn_id, f"[Guardrail] {log_prefix}PASSED")
 
     return {
         "is_suspicious": is_suspicious,
         "reasons": reasons,
         "severity": severity,
+        "should_reject": should_reject,
     }
 
 
@@ -460,28 +475,35 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
 
     # Run primary inference
     transcript, elapsed = run_inference_with_config(trimmed_audio)
-    
+
     # =========================================================================
     # PHA 3: HALLUCINATION GUARDRAILS
     # =========================================================================
-    guardrail_result = _check_hallucination_guardrails(transcript, trimmed_duration, conn_id)
-    
+    guardrail_result = _check_hallucination_guardrails(transcript, trimmed_duration, conn_id, "[Primary] ")
+
     # Retry logic (if enabled and suspicious output detected)
     if guardrail_result["is_suspicious"] and ENABLE_RETRY_HALLUCINATION:
         _slog(conn_id, f"[Guardrail] Retrying inference with temperature={RETRY_TEMPERATURE}")
         retry_transcript, retry_elapsed = run_inference_with_config(trimmed_audio, temp_override=RETRY_TEMPERATURE)
-        
+
         # Check if retry produced better result
-        retry_guardrail = _check_hallucination_guardrails(retry_transcript, trimmed_duration, conn_id)
-        
+        retry_guardrail = _check_hallucination_guardrails(retry_transcript, trimmed_duration, conn_id, "[Retry] ")
+
         if not retry_guardrail["is_suspicious"] or len(retry_transcript) > len(transcript):
             _slog(conn_id, f"[Guardrail] Retry improved result: {len(retry_transcript)} chars vs {len(transcript)} chars")
             transcript = retry_transcript
             elapsed = retry_elapsed
+            guardrail_result = retry_guardrail
         else:
             _slog(conn_id, f"[Guardrail] Retry did not improve result, keeping original")
-    
-    _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}")
+
+    # CRITICAL: If still suspicious after retry (or retry not enabled), REJECT hallucination
+    # For high-severity cases (English in Japanese audio), return empty transcript
+    if guardrail_result["should_reject"]:
+        _slog(conn_id, f"[Guardrail] REJECTING hallucinated output - returning empty transcript")
+        transcript = ""  # Better to have no transcript than wrong transcript
+
+    _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}  guardrail_rejected={guardrail_result['should_reject']}")
     return transcript
 
 
