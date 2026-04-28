@@ -82,6 +82,7 @@ async def transcription_client(
     debug_frames=False,
     log_file=None,
     server_audio_path=None,  # New argument for direct access
+    language="ja",  # Language code for transcription
 ):
     uri = build_realtime_uri(host, port)
     if debug:
@@ -116,7 +117,7 @@ async def transcription_client(
                     "transcription_delay_ms": delay,
                     "modalities": ["text"],
                     "temperature": 0.0,
-                    "language": args.language  # Language hint for ASR
+                    "language": language  # Language hint for ASR
                 }
             }
             await websocket.send(json.dumps(config))
@@ -349,7 +350,8 @@ async def main():
             debug=args.debug,
             debug_frames=args.debug_frames,
             log_file=log_file,
-            server_audio_path=server_path
+            server_audio_path=server_path,
+            language=args.language
         )
         
         # Incremental Save
