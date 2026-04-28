@@ -224,6 +224,7 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
 def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn_id: str, log_prefix: str = "") -> dict:
     """
     Check for potential hallucination indicators.
+    LOG ONLY MODE: Does not reject output, just logs warnings for evaluation.
 
     Args:
         transcript: The transcribed text
@@ -232,16 +233,15 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
         log_prefix: Prefix for log messages (e.g., "[Primary]", "[Retry]")
 
     Returns:
-        dict with 'is_suspicious', 'reasons', 'severity', 'should_reject'
+        dict with 'is_suspicious', 'reasons', 'severity'
     """
     reasons = []
     severity = "none"
-    should_reject = False  # For high-severity issues, reject outright
 
     transcript_stripped = transcript.strip()
     transcript_len = len(transcript_stripped)
 
-    _slog(conn_id, f"[Guardrail] {log_prefix} Checking: transcript_len={transcript_len}, audio_duration={audio_duration:.1f}s")
+    _slog(conn_id, f"[Guardrail] {log_prefix}Checking: transcript_len={transcript_len}, audio_duration={audio_duration:.1f}s")
 
     # Check 1: Short transcript for long audio (potential truncation or language collapse)
     if audio_duration > 10 and transcript_len < 10:
@@ -270,7 +270,6 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
     if len(detected_patterns) >= 1 and audio_duration > 5:
         reasons.append(f"Language collapse: detected English hallucination '{detected_patterns[0]}'")
         severity = "high"
-        should_reject = True  # English hallucination = reject
 
     # Check 4: Detect repetitive/looping patterns (character-level repetition)
     if transcript_len > 50:
@@ -293,7 +292,7 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
     is_suspicious = len(reasons) > 0
 
     if is_suspicious:
-        _slog(conn_id, f"[Guardrail] {log_prefix}REJECTED - {'; '.join(reasons)} [severity={severity}, reject={should_reject}]")
+        _slog(conn_id, f"[Guardrail] {log_prefix}WARNING - {'; '.join(reasons)} [severity={severity}]")
     else:
         _slog(conn_id, f"[Guardrail] {log_prefix}PASSED")
 
@@ -301,7 +300,6 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
         "is_suspicious": is_suspicious,
         "reasons": reasons,
         "severity": severity,
-        "should_reject": should_reject,
     }
 
 
@@ -476,7 +474,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     transcript, elapsed = run_inference_with_config(trimmed_audio)
 
     # =========================================================================
-    # PHA 3: HALLUCINATION GUARDRAILS
+    # PHA 3: HALLUCINATION GUARDRAILS (LOG ONLY MODE)
     # =========================================================================
     guardrail_result = _check_hallucination_guardrails(transcript, trimmed_duration, conn_id, "[Primary] ")
 
@@ -496,13 +494,8 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
         else:
             _slog(conn_id, f"[Guardrail] Retry did not improve result, keeping original")
 
-    # CRITICAL: If still suspicious after retry (or retry not enabled), REJECT hallucination
-    # For high-severity cases (English in Japanese audio), return empty transcript
-    if guardrail_result["should_reject"]:
-        _slog(conn_id, f"[Guardrail] REJECTING hallucinated output - returning empty transcript")
-        transcript = ""  # Better to have no transcript than wrong transcript
-
-    _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}  guardrail_rejected={guardrail_result['should_reject']}")
+    # LOG ONLY: Do not reject output - return transcript for evaluation
+    _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}  hallucination_warning={guardrail_result['is_suspicious']}")
     return transcript
 
 
