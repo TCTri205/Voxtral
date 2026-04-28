@@ -22,11 +22,19 @@ Trước khi chạy, hãy copy `.env.example` thành `.env` và tùy chỉnh:
 | :--- | :--- | :--- |
 | `VOXTRAL_HOST` | `localhost` | Ngrok URL hoặc server IP. |
 | `VOXTRAL_PORT` | `8000` | Cổng dịch vụ. |
-| `VOXTRAL_DELAY` | `480` | Độ trễ xử lý (ms) — *Hiện chỉ mang tính tham khảo*. |
+| `VOXTRAL_DELAY` | `480` | Độ trễ xử lý (ms) — **Lưu ý:** Tham số này được gửi lên server nhưng hiện tại là no-op (không ảnh hưởng inference). |
 | `VOXTRAL_CHUNK_INTERVAL` | `0.1` | Pacing: `0.1` (realtime), `0` (throughput). |
 | `VOXTRAL_RESPONSE_TIMEOUT` | `30` | Timeout chờ transcript sau khi gửi audio. |
 | `OPENAI_API_KEY` | `(trống)` | OpenAI API Key cho LLM Evaluator. |
 | `OPENAI_API_KEYS` | `(trống)` | Nhiều keys phân tách bằng dấu phẩy (tùy chọn). |
+
+### Server-side Constants (Hardcoded)
+
+| Hằng số | Giá trị | Ý nghĩa |
+| :--- | :--- | :--- |
+| `CHUNK_LIMIT_SEC` | `15.0` | Audio >15s sẽ được chia chunk để inference. |
+| `CHUNK_OVERLAP_SEC` | `1.0` | Overlap giữa các chunk để tránh mất thông tin boundary. |
+| `VAD_PADDING_MS` | `500` | Padding quanh speech segments (Japanese: ~12 chars/sec → 500ms = ~6 chars an toàn). |
 
 ---
 
@@ -131,8 +139,9 @@ python -m llm_evaluator.batch_runner --results results/17-04-2026_v1/results.jso
 - Chạy client local với cờ `--server-audio-dir` để server load file trực tiếp (giảm 99% thời gian chờ stream):
 
   ```bash
-  # Giả sử audio đã được clone vào /content/Voxtral/audio trên Colab
-  python run_asr.py --audio_dir audio --server-audio-dir /content/Voxtral/audio --chunk-interval 0 --host
+  # Giả sử audio đã được clone vào /content/voxtral-src/repo/audio trên Colab
+  # Thay YOUR_NGROK_URL bằng ngrok URL thực tế của bạn
+  python run_asr.py --audio_dir audio --server-audio-dir /content/voxtral-src/repo/audio --chunk-interval 0 --host https://YOUR_NGROK_URL.ngrok-free.app/
   ```
 
 - Sau khi client báo `Batch complete`, bạn có thể **tắt Runtime Colab** ngay để ngừng tiêu tốn credit.
@@ -236,11 +245,30 @@ Sau khi hoàn tất, script sẽ tạo file tổng hợp trong thư mục `bench
 - **[Inference Error]**: Xem log server tại `/tmp/voxtral_server.log`.
 - **`--server-audio-dir` trả transcript rỗng**:
   - Xác minh Colab đang chạy đúng revision bằng dòng `[startup] fingerprint:` trong `/tmp/voxtral_server.log`.
-  - Phiên bản hiện tại (v1.2) phải hiện `version:2026-04-24.1`.
+  - Phiên bản hiện tại phải hiện `version:2026-04-24.1`.
   - Nếu thấy log `VAD: silence detected, skipping inference` thì đây là hành vi đúng (không có tiếng nói).
   - Nếu log WebSocket không có `message_received  type='input_audio_buffer.from_path'`, frame `from_path` chưa tới server.
   - Nếu có `message_received ... from_path` nhưng không có `loading_from_path`, kiểm tra `unknown_message_type`.
   - Nếu có `loading_from_path` nhưng fail, đối chiếu `path_not_found` hoặc `load_error` để phân biệt sai path và lỗi decode/file.
 
+### Server Log Patterns (Tham khảo)
+
+| Log Pattern | Ý nghĩa | Hành động |
+| :--- | :--- | :--- |
+| `VAD: Trimmed X.XXs → Y.YYs` | VAD đã trim silence | Bình thường, không cần action. |
+| `VAD: silence detected, skipping inference` | Không phát hiện speech | File im lặng hoặc noise quá nhỏ. |
+| `incremental_VAD: speech_detected at X bytes` | Phát hiện speech trong buffer | Bình thường. |
+| `Merging N chunk transcripts...` | Audio >15s, đang merge chunks | Merge strategy: simple concat (không overlap-aware). |
+| `VAD load failed` | Lỗi tải Silero VAD | Kiểm tra network, retry tự động 3 lần. |
+
 ---
-*Cập nhật bởi Voxtral Audit Team - 18/04/2026*
+
+## 11. Revision History
+
+| Version | Date | Changes |
+| :--- | :--- | :--- |
+| `2026-04-24.1` | 2026-04-24 | Base version. |
+| `2026-04-28.x` | 2026-04-28 | VAD_PADDING_MS: 200ms → 500ms; Silero VAD retry logic; Merge transcripts: simple concat. |
+
+---
+*Cập nhật bởi Voxtral Audit Team - 18/04/2026 | Revision: 2026-04-28.x*

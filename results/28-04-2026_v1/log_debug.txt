@@ -1,0 +1,93 @@
+New batch run: results\28-04-2026_v1
+Found 11 files to process.
+[1/11] media_148280_1767762915627.mp3 ... Done (Total RTF: 2.811, Inference RTF: 2.798)
+[2/11] media_148284_1767766514646 (1).mp3 ... Done (Total RTF: 2.535, Inference RTF: 2.508)
+[3/11] media_148393_1767860211615 (1).mp3 ... Done (Total RTF: 2.619, Inference RTF: 2.574)
+[4/11] media_148394_1767860189485 (1).mp3 ... Done (Total RTF: 2.635, Inference RTF: 2.602)
+[5/11] media_148414_1767922241264 (1).mp3 ... Done (Total RTF: 2.686, Inference RTF: 2.654)
+[6/11] media_148439_1767926711644 (1).mp3 ... Done (Total RTF: 2.551, Inference RTF: 2.519)
+[7/11] media_148954_1768789819598 (1).mp3 ... Done (Total RTF: 2.642, Inference RTF: 2.632)
+[8/11] media_149291_1769069811005.mp3 ... 
+[Warning] media_149291_1769069811005.mp3: High keepalive count (51). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (52). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (53). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (54). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (55). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (56). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (57). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (58). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (59). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (60). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (61). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (62). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (63). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (64). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (65). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (66). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (67). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (68). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (69). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (70). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (71). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (72). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (73). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (74). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (75). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (76). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (77). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (78). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (79). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (80). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (81). Server might be struggling.
+Done (Total RTF: 2.647, Inference RTF: 2.641)
+[9/11] media_149733_1769589919400.mp3 ... 
+[Warning] media_149733_1769589919400.mp3: High keepalive count (51). Server might be struggling.
+
+[Warning] media_149733_1769589919400.mp3: High keepalive count (52). Server might be struggling.
+
+[Warning] media_149733_1769589919400.mp3: High keepalive count (53). Server might be struggling.
+
+[Warning] media_149733_1769589919400.mp3: High keepalive count (54). Server might be struggling.
+
+[Warning] media_149733_1769589919400.mp3: High keepalive count (55). Server might be struggling.
+Done (Total RTF: 2.612, Inference RTF: 2.602)
+[10/11] silence_60s.wav ... Done (Total RTF: 0.077, Inference RTF: 0.062)
+[11/11] stochastic_noise_60s.wav ... Done (Total RTF: 0.062, Inference RTF: 0.047)
+
+Batch complete. results in results\28-04-2026_v1\results.json
+Processed: 11/11 success
+Avg Total RTF: 2.171
+Avg Inference RTF: 2.149
+
+Generating evaluation report: results\28-04-2026_v1\report.md ...
+Report generated successfully.
