@@ -132,7 +132,7 @@ python -m llm_evaluator.batch_runner --results results/17-04-2026_v1/results.jso
 
   ```bash
   # Giả sử audio đã được clone vào /content/Voxtral/audio trên Colab
-  python run_asr.py --audio_dir audio --server-audio-dir /content/Voxtral/audio --chunk-interval 0
+  python run_asr.py --audio_dir audio --server-audio-dir /content/Voxtral/audio --chunk-interval 0 --host
   ```
 
 - Sau khi client báo `Batch complete`, bạn có thể **tắt Runtime Colab** ngay để ngừng tiêu tốn credit.

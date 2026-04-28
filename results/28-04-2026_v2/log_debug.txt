@@ -1,0 +1,41 @@
+New batch run: results\28-04-2026_v2
+Found 1 files to process.
+[1/1] media_148414_1767922241264 (1).mp3 ...  Connecting to: wss://ec36-34-16-241-240.ngrok-free.app/v1/realtime
+[DBG 02:03:33.686] keepalive #1
+[DBG 02:03:38.690] keepalive #2
+[DBG 02:03:43.685] keepalive #3
+[DBG 02:03:48.684] keepalive #4
+[DBG 02:03:53.694] keepalive #5
+[DBG 02:03:58.688] keepalive #6
+[DBG 02:04:03.684] keepalive #7
+[DBG 02:04:08.684] keepalive #8
+[DBG 02:04:13.697] keepalive #9
+[DBG 02:04:18.721] keepalive #10
+[DBG 02:04:23.703] keepalive #11
+[DBG 02:04:28.706] keepalive #12
+[DBG 02:04:33.690] keepalive #13
+[DBG 02:04:38.689] keepalive #14
+[DBG 02:04:43.728] keepalive #15
+[DBG 02:04:48.696] keepalive #16
+[DBG 02:04:53.693] keepalive #17
+[DBG 02:04:58.700] keepalive #18
+[DBG 02:05:03.712] keepalive #19
+[DBG 02:05:08.757] keepalive #20
+[DBG 02:05:13.717] keepalive #21
+[DBG 02:05:18.700] keepalive #22
+[DBG 02:05:23.698] keepalive #23
+[DBG 02:05:28.700] keepalive #24
+[DBG 02:05:33.702] keepalive #25
+[DBG 02:05:38.708] keepalive #26
+[DBG 02:05:43.708] keepalive #27
+[DBG 02:05:48.709] keepalive #28
+[DBG 02:05:53.716] keepalive #29
+Done (Total RTF: 3.862, Inference RTF: 2.842)
+
+Batch complete. results in results\28-04-2026_v2\results.json
+Processed: 1/1 success
+Avg Total RTF: 3.862
+Avg Inference RTF: 2.842
+
+Generating evaluation report: results\28-04-2026_v2\report.md ...
+Report generated successfully.

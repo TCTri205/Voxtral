@@ -28,7 +28,7 @@ vad_utils = None
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
-VAD_PADDING_MS = 200  # Padding around speech segments to avoid cutting off audio
+VAD_PADDING_MS = 500  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 500ms = ~6 chars safety margin)
 
 # Hallucination guardrails config (via environment variable)
 ENABLE_RETRY_HALLUCINATION = os.getenv("VOXTRAL_RETRY_HALLUCINATION", "false").lower() == "true"
@@ -267,11 +267,34 @@ def load_voxtral_model(model_id: str, load_in_4bit: bool = False):
     print(f"[startup] fingerprint: {_server_fingerprint()}", flush=True)
     print(f"[startup] Loading model: {model_id} on {device}...", flush=True)
 
-    # Load Silero VAD
+    # Load Silero VAD with retry logic for network resilience
     print("[startup] Loading Silero VAD...", flush=True)
-    vad_model, outputs = torch.hub.load(repo_or_dir='snakers4/silero-vad', model='silero_vad', trust_repo=True)
-    vad_utils = outputs
-    print("[startup] Silero VAD loaded.", flush=True)
+    max_retries = 3
+    retry_delay = 5
+    for attempt in range(max_retries):
+        try:
+            vad_model, outputs = torch.hub.load(
+                repo_or_dir='snakers4/silero-vad',
+                model='silero_vad',
+                trust_repo=True,
+                force_reload=False  # Use cached model if available
+            )
+            vad_utils = outputs
+            print("[startup] Silero VAD loaded successfully.", flush=True)
+            break
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"[startup] VAD load failed (attempt {attempt + 1}/{max_retries}): {e}", flush=True)
+                print(f"[startup] Retrying in {retry_delay}s...", flush=True)
+                import time
+                time.sleep(retry_delay)
+            else:
+                print(f"[startup] VAD load failed after {max_retries} attempts.", flush=True)
+                print("[startup] ERROR: Cannot load Silero VAD. Try:", flush=True)
+                print("[startup]   1. Check network connectivity", flush=True)
+                print("[startup]   2. Run this in Colab first: torch.hub.load('snakers4/silero-vad', 'silero_vad', trust_repo=True, force_reload=True)", flush=True)
+                print("[startup]   3. Download model manually and set TORCH_HOME cache", flush=True)
+                raise
 
     quantization_config = None
     if load_in_4bit and device == "cuda":
