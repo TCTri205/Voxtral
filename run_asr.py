@@ -116,7 +116,7 @@ async def transcription_client(
                 "session": {
                     "transcription_delay_ms": delay,
                     "modalities": ["text"],
-                    "temperature": 0.0,
+                    "temperature": 0.1,
                     "language": language  # Language hint for ASR
                 }
             }
@@ -214,7 +214,7 @@ async def transcription_client(
 
                 if data["type"] == "session.keepalive":
                     keepalive_count += 1
-                    if keepalive_count > 50:
+                    if keepalive_count > 85:
                         log(f"\n[Warning] {os.path.basename(audio_path)}: High keepalive count ({keepalive_count}). Server might be struggling.", log_file)
                     if debug:
                         log(f"[DBG {_ts()}] keepalive #{keepalive_count}", log_file)

@@ -35,6 +35,10 @@ VAD_THRESHOLD = 0.5  # Speech probability threshold (0.0-1.0)
 VAD_MIN_SPEECH_DURATION_MS = 250  # Minimum speech segment duration to be considered
 VAD_MIN_SILENCE_DURATION_MS = 100  # Minimum silence gap to split segments
 
+# Online VAD-Aware Chunking config
+VAD_SEGMENT_SILENCE_MS = 800   # Silence gap to split speech regions for chunking
+VAD_CHUNK_PADDING_MS = 200     # Padding when cutting speech segment into chunks
+
 # Hallucination guardrails config (via environment variable)
 ENABLE_RETRY_HALLUCINATION = os.getenv("VOXTRAL_RETRY_HALLUCINATION", "false").lower() == "true"
 RETRY_TEMPERATURE = 0.5  # Temperature for retry attempts
@@ -140,6 +144,113 @@ def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
     except Exception as e:
         # On error, return original audio
         return audio_np, {"original_duration": len(audio_np)/sample_rate, "trimmed_duration": len(audio_np)/sample_rate, "speech_detected": True, "vad_error": str(e)}
+
+
+def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, sample_rate: int = 16000, 
+                             max_chunk_sec: float = CHUNK_LIMIT_SEC, 
+                             padding_ms: int = VAD_CHUNK_PADDING_MS) -> list:
+    """
+    Group VAD speech segments into chunks <= max_chunk_sec.
+    
+    Args:
+        audio_np: The audio numpy array
+        speech_timestamps: List of dicts with 'start' and 'end' sample indices
+        sample_rate: Audio sampling rate
+        max_chunk_sec: Maximum duration of a chunk in seconds
+        padding_ms: Padding to add around chunks
+        
+    Returns:
+        List of dicts containing 'audio_np', 'start_sec', 'end_sec', 'segments_count'
+    """
+    if not speech_timestamps:
+        return []
+        
+    chunks = []
+    current_chunk_segments = [speech_timestamps[0]]
+    current_chunk_start = speech_timestamps[0]['start']
+    current_chunk_end = speech_timestamps[0]['end']
+    
+    padding_samples = int((padding_ms / 1000.0) * sample_rate)
+    max_chunk_samples = int(max_chunk_sec * sample_rate)
+    
+    for i in range(1, len(speech_timestamps)):
+        segment = speech_timestamps[i]
+        
+        # Calculate potential new chunk size if we add this segment
+        # (including the silence gap between current_chunk_end and segment['start'])
+        potential_chunk_end = segment['end']
+        potential_chunk_size = potential_chunk_end - current_chunk_start
+        
+        if potential_chunk_size <= max_chunk_samples:
+            # Segment fits in current chunk
+            current_chunk_end = segment['end']
+            current_chunk_segments.append(segment)
+        else:
+            # Add padding and finalize current chunk
+            start_idx = max(0, current_chunk_start - padding_samples)
+            end_idx = min(len(audio_np), current_chunk_end + padding_samples)
+            
+            chunk_audio = audio_np[start_idx:end_idx]
+            
+            # Sub-chunking if a single segment (or a previously started chunk) is somehow longer than max_chunk_sec
+            if len(chunk_audio) > max_chunk_samples:
+                # We have to split it blindly if a continuous speech piece is > max_chunk_sec
+                sub_pos = 0
+                overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
+                while sub_pos < len(chunk_audio):
+                    sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
+                    sub_audio = chunk_audio[sub_pos:sub_end]
+                    
+                    actual_start_sec = (start_idx + sub_pos) / sample_rate
+                    actual_end_sec = (start_idx + sub_end) / sample_rate
+                    
+                    chunks.append({
+                        "audio_np": sub_audio,
+                        "start_sec": actual_start_sec,
+                        "end_sec": actual_end_sec,
+                        "segments_count": len(current_chunk_segments) if sub_pos == 0 else 0
+                    })
+                    sub_pos += max_chunk_samples - overlap_samples
+            else:
+                chunks.append({
+                    "audio_np": chunk_audio,
+                    "start_sec": start_idx / sample_rate,
+                    "end_sec": end_idx / sample_rate,
+                    "segments_count": len(current_chunk_segments)
+                })
+            
+            # Start new chunk
+            current_chunk_start = segment['start']
+            current_chunk_end = segment['end']
+            current_chunk_segments = [segment]
+            
+    # Process final chunk
+    start_idx = max(0, current_chunk_start - padding_samples)
+    end_idx = min(len(audio_np), current_chunk_end + padding_samples)
+    chunk_audio = audio_np[start_idx:end_idx]
+    
+    if len(chunk_audio) > max_chunk_samples:
+        sub_pos = 0
+        overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
+        while sub_pos < len(chunk_audio):
+            sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
+            sub_audio = chunk_audio[sub_pos:sub_end]
+            chunks.append({
+                "audio_np": sub_audio,
+                "start_sec": (start_idx + sub_pos) / sample_rate,
+                "end_sec": (start_idx + sub_end) / sample_rate,
+                "segments_count": len(current_chunk_segments) if sub_pos == 0 else 0
+            })
+            sub_pos += max_chunk_samples - overlap_samples
+    else:
+        chunks.append({
+            "audio_np": chunk_audio,
+            "start_sec": start_idx / sample_rate,
+            "end_sec": end_idx / sample_rate,
+            "segments_count": len(current_chunk_segments)
+        })
+        
+    return chunks
 
 
 def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id: str, on_delta=None) -> str:
@@ -305,11 +416,11 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
 
 def _merge_chunk_transcripts(transcripts: list, overlap_sec: float = CHUNK_OVERLAP_SEC) -> str:
     """
-    Merge transcripts from overlapping chunks, deduplicating the overlap region.
+    Merge transcripts from chunks. For VAD-aware chunks, we just concatenate.
     
     Args:
         transcripts: List of (transcript, duration) tuples
-        overlap_sec: Expected overlap duration in seconds
+        overlap_sec: Expected overlap duration in seconds (ignored for now as VAD chunks don't overlap)
     
     Returns:
         Merged transcript string
@@ -320,13 +431,11 @@ def _merge_chunk_transcripts(transcripts: list, overlap_sec: float = CHUNK_OVERL
     if len(transcripts) == 1:
         return transcripts[0][0]
     
-    # Simple merge: just concatenate with space
-    # TODO: Implement smarter overlap detection based on word matching
     merged = transcripts[0][0]
     for i in range(1, len(transcripts)):
         chunk_text = transcripts[i][0]
         if chunk_text:
-            merged += " " + chunk_text
+            merged += chunk_text  # No space needed for Japanese
     
     return merged.strip()
 
@@ -424,7 +533,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
         return ""
 
     # =========================================================================
-    # PHA 2: CHUNKED INFERENCE (for audio > CHUNK_LIMIT_SEC)
+    # PHA 2: VAD-AWARE CHUNKED INFERENCE 
     # =========================================================================
     def run_inference_with_config(audio_to_process, temp_override=None):
         """Helper to run inference with optional temperature override."""
@@ -435,34 +544,52 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
         else:
             retry_config = session_config
             
-        if trimmed_duration <= CHUNK_LIMIT_SEC:
+        # Run VAD on the audio to get exact speech timestamps and chunk it
+        sample_rate = 16000
+        audio_tensor = torch.from_numpy(audio_to_process)
+        get_speech_timestamps = vad_utils[0]
+        
+        speech_timestamps = get_speech_timestamps(
+            audio_tensor, 
+            vad_model, 
+            sampling_rate=sample_rate,
+            threshold=VAD_THRESHOLD,
+            min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+            min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS, # Use larger silence gap for chunking
+        )
+        
+        chunks = _create_vad_aware_chunks(
+            audio_to_process, 
+            speech_timestamps, 
+            sample_rate=sample_rate,
+            max_chunk_sec=CHUNK_LIMIT_SEC,
+            padding_ms=VAD_CHUNK_PADDING_MS
+        )
+        
+        if not chunks:
+            _slog(conn_id, "VAD: No speech found in run_inference_with_config")
+            return "", 0.0
+            
+        if len(chunks) == 1:
             # Single chunk - process normally
-            return _run_inference_for_chunk(audio_to_process, retry_config, conn_id, on_delta)
+            _slog(conn_id, f"Processing single VAD chunk ({chunks[0]['start_sec']:.2f}s - {chunks[0]['end_sec']:.2f}s, {chunks[0]['segments_count']} segments)")
+            return _run_inference_for_chunk(chunks[0]['audio_np'], retry_config, conn_id, on_delta)
         else:
-            # Multiple chunks needed
-            sample_rate = 16000
-            chunk_samples = int(CHUNK_LIMIT_SEC * sample_rate)
-            overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
-            
-            # Calculate chunk boundaries
-            chunks = []
-            pos = 0
-            chunk_times = []
-            while pos < len(audio_to_process):
-                end_pos = min(pos + chunk_samples, len(audio_to_process))
-                chunks.append(audio_to_process[pos:end_pos])
-                chunk_times.append((pos/sample_rate, end_pos/sample_rate))
-                pos += chunk_samples - overlap_samples
-            
-            _slog(conn_id, f"Chunking: {trimmed_duration:.2f}s → {len(chunks)} chunks: {chunk_times}")
-            
             # Process each chunk
+            _slog(conn_id, f"VAD Chunking: Audio split into {len(chunks)} speech-only chunks")
             transcripts = []
-            for i, chunk in enumerate(chunks):
-                _slog(conn_id, f"Processing chunk {i+1}/{len(chunks)} ({chunk_times[i][0]:.1f}s-{chunk_times[i][1]:.1f}s)")
-                chunk_transcript, chunk_elapsed = _run_inference_for_chunk(chunk, retry_config, conn_id, None)
+            
+            for i, chunk_info in enumerate(chunks):
+                _slog(conn_id, f"Processing chunk {i+1}/{len(chunks)} ({chunk_info['start_sec']:.1f}s-{chunk_info['end_sec']:.1f}s, {chunk_info['segments_count']} segs)")
+                
+                # Only pass on_delta to the first chunk to avoid confusing the client 
+                # (since deltas would be sent out of order relative to original audio if there are long gaps)
+                # For now, we disable on_delta for chunked processing to keep it simple
+                chunk_transcript, chunk_elapsed = _run_inference_for_chunk(chunk_info['audio_np'], retry_config, conn_id, None)
+                
                 _slog(conn_id, f"Chunk {i+1} done in {chunk_elapsed:.2f}s, transcript_len={len(chunk_transcript)}")
-                transcripts.append((chunk_transcript, chunk_times[i][1] - chunk_times[i][0]))
+                duration = chunk_info['end_sec'] - chunk_info['start_sec']
+                transcripts.append((chunk_transcript, duration))
             
             # Merge transcripts
             transcript = _merge_chunk_transcripts(transcripts)
@@ -533,6 +660,11 @@ async def realtime_endpoint(websocket: WebSocket):
     # VAD state for this connection (Priority 1)
     speech_detected = False
     last_vad_pos = 0
+    
+    # Online VAD segment tracking
+    speech_segments = []           # Collected speech timestamps
+    segment_check_pos = 0          # Position in audio buffer for VAD check
+    last_segment_active = False    # Is there an active speech segment currently open?
 
     try:
         while True:
@@ -562,26 +694,36 @@ async def realtime_endpoint(websocket: WebSocket):
                     audio_buffer.extend(chunk_bytes)
                     accumulated_bytes += len(chunk_bytes)
 
-                    # Incremental VAD check (Priority 1)
+                    # Incremental VAD check
                     # Run if we have at least 1536 samples (3072 bytes) which is ~96ms
                     # Silero VAD works well on 30ms-100ms chunks.
-                    if not speech_detected and (len(audio_buffer) - last_vad_pos) >= 3072:
+                    if (len(audio_buffer) - segment_check_pos) >= 3072:
                         try:
-                            check_bytes = audio_buffer[last_vad_pos:]
-                            audio_np = np.frombuffer(check_bytes, dtype=np.int16).astype(np.float32) / 32767.0
-                            audio_tensor = torch.from_numpy(audio_np)
-                            get_speech_timestamps = vad_utils[0]
-                            speech_timestamps = get_speech_timestamps(
-                                audio_tensor, 
-                                vad_model, 
-                                sampling_rate=16000,
-                                threshold=VAD_THRESHOLD,
-                                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
-                            )
-                            if speech_timestamps:
-                                speech_detected = True
-                                _slog(conn_id, f"incremental_VAD: speech_detected at {accumulated_bytes} bytes")
-                            last_vad_pos = len(audio_buffer)
+                            # Note: To correctly get timestamps over a continuous stream, 
+                            # we should ideally run VAD over the whole buffer up to this point.
+                            # For efficiency and to keep it simple while fixing hallucination,
+                            # we will do a fast check on the whole buffer so far, 
+                            # or just depend on the commit phase for exact chunking.
+                            # In this incremental phase, we just maintain the binary speech_detected flag.
+                            if not speech_detected:
+                                check_bytes = audio_buffer[last_vad_pos:]
+                                audio_np = np.frombuffer(check_bytes, dtype=np.int16).astype(np.float32) / 32767.0
+                                audio_tensor = torch.from_numpy(audio_np)
+                                get_speech_timestamps = vad_utils[0]
+                                speech_timestamps = get_speech_timestamps(
+                                    audio_tensor, 
+                                    vad_model, 
+                                    sampling_rate=16000,
+                                    threshold=VAD_THRESHOLD,
+                                    min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                                    min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS,
+                                )
+                                if speech_timestamps:
+                                    speech_detected = True
+                                    _slog(conn_id, f"incremental_VAD: speech_detected at {accumulated_bytes} bytes")
+                                last_vad_pos = len(audio_buffer)
+                                
+                            segment_check_pos = len(audio_buffer)
                         except Exception as e:
                             _slog(conn_id, f"incremental_VAD_error: {e}")
 
@@ -609,6 +751,7 @@ async def realtime_endpoint(websocket: WebSocket):
                                 sampling_rate=16000,
                                 threshold=VAD_THRESHOLD,
                                 min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                                min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS,
                             )
                             if speech_timestamps:
                                 speech_detected = True
