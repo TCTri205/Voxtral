@@ -158,22 +158,13 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     # Resample to the rate the feature extractor expects (usually 16kHz, but future-proof)
     audio_obj.resample(processor.feature_extractor.sampling_rate)
 
-    # Language hint: Allow client to specify language via session config.
-    # Default to Japanese for this deployment (telephone calls).
-    # This prevents language collapse when audio quality is poor.
-    # Format tested: "[ja]" is more concise and effective than "[Japanese transcription]"
+    # Language hint: Client can specify language via session config.
+    # NOTE: Voxtral model does NOT support language hints via text prefix.
+    # The language parameter is kept for logging/debugging purposes only.
     language = session_config.get("language", "ja")
-    language_prefixes = {
-        "ja": "[ja] ",  # Concise language tag - tested to be more effective
-        "en": "[en] ",
-        "vi": "[vi] ",
-        "zh": "[zh] ",
-        "ko": "[ko] ",
-    }
-    text_prefix = language_prefixes.get(language, f"[{language}] ")
-    
+
+    # Run inference with audio only - no text prefix
     inputs = processor(
-        text=text_prefix,
         audio=audio_obj.audio_array,
         return_tensors="pt"
     )
@@ -263,15 +254,23 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
         severity = "low"
 
     # Check 3: Detect potential language collapse (English words in Japanese audio context)
-    # Common English hallucination patterns when model collapses
-    english_patterns = ["i'm sorry", "hi ", "hello", "thank you", "joseph", "good morning", 
-                        "now, how", "so this", "just to ask", "how does", "how many times"]
+    # Focus on FULL English sentences/phrases that are clear hallucinations
+    # Exclude loanwords/code names that may appear in Japanese business calls
+    english_hallucination_patterns = [
+        # Full sentence patterns (definite hallucinations)
+        "now, how does", "so this call", "just to ask that", "how many times have you",
+        "i'm sorry", "good morning", "good afternoon",
+        # Conversational English (unlikely in Japanese business calls)
+        "hi there", "hello,", "thank you,", "you're welcome",
+        # Question patterns
+        "how does someone", "would you like to", "can i help you",
+    ]
     transcript_lower = transcript_stripped.lower()
-    english_matches = sum(1 for pattern in english_patterns if pattern in transcript_lower)
-    if english_matches >= 1 and audio_duration > 5:
-        reasons.append(f"Language collapse: detected '{[p for p in english_patterns if p in transcript_lower][0]}'")
+    detected_patterns = [p for p in english_hallucination_patterns if p in transcript_lower]
+    if len(detected_patterns) >= 1 and audio_duration > 5:
+        reasons.append(f"Language collapse: detected English hallucination '{detected_patterns[0]}'")
         severity = "high"
-        should_reject = True  # English in Japanese call = definite hallucination
+        should_reject = True  # English hallucination = reject
 
     # Check 4: Detect repetitive/looping patterns (character-level repetition)
     if transcript_len > 50:

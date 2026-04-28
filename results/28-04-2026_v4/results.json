@@ -1,0 +1,38 @@
+[
+    {
+        "file": "media_148954_1768789819598 (1).mp3",
+        "status": "success",
+        "transcript": "",
+        "duration": 95.96,
+        "connect_time": 0.947,
+        "stream_time": 0.0,
+        "wait_after_commit": 261.228,
+        "total_time": 262.18,
+        "total_rtf": 2.732,
+        "inference_rtf": 2.722,
+        "keepalive_count": 48,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "rf": 0,
+        "cer": "N/A (Empty)"
+    },
+    {
+        "file": "media_149291_1769069811005.mp3",
+        "status": "success",
+        "transcript": "",
+        "duration": 156.64,
+        "connect_time": 0.786,
+        "stream_time": 0.0,
+        "wait_after_commit": 424.213,
+        "total_time": 425.0,
+        "total_rtf": 2.713,
+        "inference_rtf": 2.708,
+        "keepalive_count": 83,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "rf": 0,
+        "cer": "N/A (Empty)"
+    }
+]
