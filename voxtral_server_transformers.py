@@ -30,6 +30,11 @@ CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
 VAD_PADDING_MS = 500  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 500ms = ~6 chars safety margin)
 
+# Silero VAD configuration (optimized for Japanese telephone audio)
+VAD_THRESHOLD = 0.5  # Speech probability threshold (0.0-1.0)
+VAD_MIN_SPEECH_DURATION_MS = 250  # Minimum speech segment duration to be considered
+VAD_MIN_SILENCE_DURATION_MS = 100  # Minimum silence gap to split segments
+
 # Hallucination guardrails config (via environment variable)
 ENABLE_RETRY_HALLUCINATION = os.getenv("VOXTRAL_RETRY_HALLUCINATION", "false").lower() == "true"
 RETRY_TEMPERATURE = 0.5  # Temperature for retry attempts
@@ -70,11 +75,11 @@ def _slog(conn_id: str, msg: str):
 def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
     """
     Use Silero VAD to find speech segments and trim leading/trailing silence.
-    
+
     Args:
         audio_np: float32 numpy array of audio samples (normalized to [-1, 1])
         sample_rate: Sample rate (default 16kHz)
-    
+
     Returns:
         trimmed_audio: Audio array trimmed to speech segments with padding
         debug_info: Dict with original_duration, trimmed_duration, speech_detected
@@ -82,36 +87,43 @@ def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
     if vad_model is None or vad_utils is None:
         # VAD not loaded, return original audio
         return audio_np, {"original_duration": len(audio_np)/sample_rate, "trimmed_duration": len(audio_np)/sample_rate, "speech_detected": True, "vad_error": "VAD not loaded"}
-    
+
     try:
         original_duration = len(audio_np) / sample_rate
         audio_tensor = torch.from_numpy(audio_np)
         get_speech_timestamps = vad_utils[0]
-        
-        # Get speech timestamps
-        speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=sample_rate)
-        
+
+        # Get speech timestamps with configured thresholds
+        speech_timestamps = get_speech_timestamps(
+            audio_tensor, 
+            vad_model, 
+            sampling_rate=sample_rate,
+            threshold=VAD_THRESHOLD,
+            min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+            min_silence_duration_ms=VAD_MIN_SILENCE_DURATION_MS,
+        )
+
         if not speech_timestamps:
             # No speech detected
             return audio_np, {"original_duration": original_duration, "trimmed_duration": original_duration, "speech_detected": False}
-        
+
         # Find the first and last speech segments
         first_start = speech_timestamps[0]['start']
         last_end = speech_timestamps[-1]['end']
-        
+
         # Convert sample indices to time (seconds)
         first_start_sec = first_start / sample_rate
         last_end_sec = last_end / sample_rate
-        
+
         # Apply padding (convert ms to samples)
         padding_samples = int((VAD_PADDING_MS / 1000.0) * sample_rate)
         start_sample = max(0, first_start - padding_samples)
         end_sample = min(len(audio_np), last_end + padding_samples)
-        
+
         # Trim audio
         trimmed_audio = audio_np[start_sample:end_sample]
         trimmed_duration = len(trimmed_audio) / sample_rate
-        
+
         debug_info = {
             "original_duration": original_duration,
             "trimmed_duration": trimmed_duration,
@@ -119,10 +131,12 @@ def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
             "first_speech_start_sec": first_start_sec,
             "last_speech_end_sec": last_end_sec,
             "num_segments": len(speech_timestamps),
+            "vad_threshold": VAD_THRESHOLD,
+            "min_speech_duration_ms": VAD_MIN_SPEECH_DURATION_MS,
         }
-        
+
         return trimmed_audio, debug_info
-        
+
     except Exception as e:
         # On error, return original audio
         return audio_np, {"original_duration": len(audio_np)/sample_rate, "trimmed_duration": len(audio_np)/sample_rate, "speech_detected": True, "vad_error": str(e)}
@@ -134,7 +148,7 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     Internal helper used by _run_inference_sync for chunked processing.
     """
     t0 = time.time()
-    
+
     # Build an Audio object the way the official example shows
     audio_obj = Audio(
         audio_array=audio_np,
@@ -144,9 +158,24 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     # Resample to the rate the feature extractor expects (usually 16kHz, but future-proof)
     audio_obj.resample(processor.feature_extractor.sampling_rate)
 
-    # Bias decoding toward Japanese with a short Japanese transcription prompt.
-    # This is text priming, not a hard language lock.
-    inputs = processor(text="日本語で書き起こしてください。", audio=audio_obj.audio_array, return_tensors="pt")
+    # Language hint: Allow client to specify language via session config.
+    # Default to Japanese for this deployment (telephone calls).
+    # This prevents language collapse when audio quality is poor.
+    language = session_config.get("language", "ja")
+    language_prefixes = {
+        "ja": "[Japanese transcription] ",
+        "en": "[English transcription] ",
+        "vi": "[Vietnamese transcription] ",
+        "zh": "[Chinese transcription] ",
+        "ko": "[Korean transcription] ",
+    }
+    text_prefix = language_prefixes.get(language, f"[{language} transcription] ")
+    
+    inputs = processor(
+        text=text_prefix,
+        audio=audio_obj.audio_array,
+        return_tensors="pt"
+    )
     inputs = inputs.to(model.device)
     for k, v in inputs.items():
         if torch.is_floating_point(v):
@@ -203,28 +232,58 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
 def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn_id: str) -> dict:
     """
     Check for potential hallucination indicators.
-    
+
     Returns:
         dict with 'is_suspicious', 'reason', 'severity'
     """
     reasons = []
     severity = "none"
-    
-    # Check 1: Short transcript for long audio
-    if audio_duration > 10 and len(transcript.strip()) < 10:
-        reasons.append(f"Short transcript ({len(transcript)} chars) for long audio ({audio_duration:.1f}s)")
+
+    transcript_stripped = transcript.strip()
+    transcript_len = len(transcript_stripped)
+
+    # Check 1: Short transcript for long audio (potential truncation or language collapse)
+    if audio_duration > 10 and transcript_len < 10:
+        reasons.append(f"Short transcript ({transcript_len} chars) for long audio ({audio_duration:.1f}s)")
         severity = "medium"
-    
+
     # Check 2: Very short transcript for medium audio
-    if 5 < audio_duration <= 10 and len(transcript.strip()) < 5:
-        reasons.append(f"Very short transcript ({len(transcript)} chars) for medium audio ({audio_duration:.1f}s)")
+    if 5 < audio_duration <= 10 and transcript_len < 5:
+        reasons.append(f"Very short transcript ({transcript_len} chars) for medium audio ({audio_duration:.1f}s)")
         severity = "low"
-    
+
+    # Check 3: Detect potential language collapse (English words in Japanese audio context)
+    # Common English hallucination patterns when model collapses
+    english_patterns = ["i'm sorry", "hi ", "hello", "thank you", "joseph", "good morning"]
+    transcript_lower = transcript_stripped.lower()
+    english_matches = sum(1 for pattern in english_patterns if pattern in transcript_lower)
+    if english_matches >= 2 and audio_duration > 5:
+        reasons.append(f"Potential language collapse: detected {english_matches} English pattern(s)")
+        severity = "high"
+
+    # Check 4: Detect repetitive/looping patterns (character-level repetition)
+    if transcript_len > 50:
+        # Check for repeated character sequences (e.g., "はい、ありがとうございます。はい、ありがとうございます。")
+        # Split by common Japanese punctuation
+        segments = transcript_stripped.replace("。", "\n").replace("、", "\n").split("\n")
+        if len(segments) > 3:
+            # Check if segments are highly repetitive
+            unique_segments = set(segments)
+            repetition_ratio = len(unique_segments) / len(segments)
+            if repetition_ratio < 0.3:  # Less than 30% unique segments
+                reasons.append(f"Potential looping: only {len(unique_segments)} unique segments out of {len(segments)}")
+                severity = "high"
+
+    # Check 5: Empty transcript for non-silent audio (VAD may have failed)
+    if transcript_len == 0 and audio_duration > 2:
+        reasons.append("Empty transcript for non-silent audio")
+        severity = "medium"
+
     is_suspicious = len(reasons) > 0
-    
+
     if is_suspicious:
         _slog(conn_id, f"[Guardrail] Suspicious output: {'; '.join(reasons)}")
-    
+
     return {
         "is_suspicious": is_suspicious,
         "reasons": reasons,
@@ -498,7 +557,13 @@ async def realtime_endpoint(websocket: WebSocket):
                             audio_np = np.frombuffer(check_bytes, dtype=np.int16).astype(np.float32) / 32767.0
                             audio_tensor = torch.from_numpy(audio_np)
                             get_speech_timestamps = vad_utils[0]
-                            speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=16000)
+                            speech_timestamps = get_speech_timestamps(
+                                audio_tensor, 
+                                vad_model, 
+                                sampling_rate=16000,
+                                threshold=VAD_THRESHOLD,
+                                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                            )
                             if speech_timestamps:
                                 speech_detected = True
                                 _slog(conn_id, f"incremental_VAD: speech_detected at {accumulated_bytes} bytes")
@@ -524,7 +589,13 @@ async def realtime_endpoint(websocket: WebSocket):
                             audio_np_vad = np.frombuffer(chunk_bytes, dtype=np.int16).astype(np.float32) / 32767.0
                             audio_tensor = torch.from_numpy(audio_np_vad)
                             get_speech_timestamps = vad_utils[0]
-                            speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=16000)
+                            speech_timestamps = get_speech_timestamps(
+                                audio_tensor, 
+                                vad_model, 
+                                sampling_rate=16000,
+                                threshold=VAD_THRESHOLD,
+                                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                            )
                             if speech_timestamps:
                                 speech_detected = True
                                 _slog(conn_id, "file_VAD: speech_detected in loaded path")
@@ -551,10 +622,16 @@ async def realtime_endpoint(websocket: WebSocket):
                             audio_np = np.frombuffer(audio_buffer, dtype=np.int16).astype(np.float32) / 32767.0
                             audio_tensor = torch.from_numpy(audio_np)
                             get_speech_timestamps = vad_utils[0]
-                            speech_timestamps = get_speech_timestamps(audio_tensor, vad_model, sampling_rate=16000)
+                            speech_timestamps = get_speech_timestamps(
+                                audio_tensor, 
+                                vad_model, 
+                                sampling_rate=16000,
+                                threshold=VAD_THRESHOLD,
+                                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                            )
                             if speech_timestamps:
                                 speech_detected = True
-                        
+
                         if not speech_detected:
                             _slog(conn_id, "VAD: silence confirmed, skipping inference")
                             await websocket.send_text(

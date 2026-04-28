@@ -115,7 +115,8 @@ async def transcription_client(
                 "session": {
                     "transcription_delay_ms": delay,
                     "modalities": ["text"],
-                    "temperature": 0.0
+                    "temperature": 0.0,
+                    "language": args.language  # Language hint for ASR
                 }
             }
             await websocket.send(json.dumps(config))
@@ -263,6 +264,7 @@ async def main():
     parser.add_argument("--host", type=str, default=os.getenv("VOXTRAL_HOST", "localhost"), help="Server host")
     parser.add_argument("--port", type=int, default=int(os.getenv("VOXTRAL_PORT", 8000)), help="Server port")
     parser.add_argument("--delay", type=int, default=int(os.getenv("VOXTRAL_DELAY", 480)), help="Transcription delay (ms)")
+    parser.add_argument("--language", type=str, default=os.getenv("VOXTRAL_LANGUAGE", "ja"), help="Language code for transcription (default: ja)")
     parser.add_argument("--resume", type=str, help="Folder path to resume a previous batch run (e.g. results/17-04-2026_v1)")
     parser.add_argument("--chunk-interval", type=float, default=0.1, help="Pacing (0.1 for realtime, 0 for throughput)")
     parser.add_argument("--response-timeout", type=float, default=30, help="Wait for transcript after commit")
