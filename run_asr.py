@@ -8,9 +8,16 @@ import websockets
 import time
 import os
 import subprocess
+import sys
 from pathlib import Path
 from urllib.parse import urlparse
 from dotenv import load_dotenv
+
+# Fix Windows console encoding (cp1252 -> utf-8) so Unicode transcripts are handled correctly
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
+    sys.stdout = open(sys.stdout.fileno(), mode="w", encoding="utf-8", errors="replace", buffering=1)
+if sys.stderr.encoding and sys.stderr.encoding.lower() not in ("utf-8", "utf8"):
+    sys.stderr = open(sys.stderr.fileno(), mode="w", encoding="utf-8", errors="replace", buffering=1)
 
 # Load environment variables from .env file
 load_dotenv()

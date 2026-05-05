@@ -7,6 +7,12 @@ import sys
 import glob
 from pathlib import Path
 
+# Fix Windows console encoding (cp1252 -> utf-8) so Unicode transcripts print correctly
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
+    sys.stdout = open(sys.stdout.fileno(), mode="w", encoding="utf-8", errors="replace", buffering=1)
+if sys.stderr.encoding and sys.stderr.encoding.lower() not in ("utf-8", "utf8"):
+    sys.stderr = open(sys.stderr.fileno(), mode="w", encoding="utf-8", errors="replace", buffering=1)
+
 def main():
     parser = argparse.ArgumentParser(description="Voxtral Benchmark Runner - Automated Multi-run Execution")
     parser.add_argument("--runs", type=int, default=1, help="Number of times to repeat the ASR run")
@@ -113,13 +119,20 @@ def main():
 
             my_env = os.environ.copy()
             my_env["PYTHONUNBUFFERED"] = "1"
+            my_env["PYTHONUTF8"] = "1"          # Python 3.7+ UTF-8 mode (handles Japanese correctly)
+            my_env["PYTHONIOENCODING"] = "utf-8"  # Fallback for older Pythons
             
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", env=my_env)
             
             current_run_dir = None
             for line in process.stdout:
-                sys.stdout.write(line)
-                sys.stdout.flush()
+                try:
+                    sys.stdout.write(line)
+                    sys.stdout.flush()
+                except (UnicodeEncodeError, UnicodeDecodeError):
+                    # Fallback: replace unencodable chars so the run continues
+                    sys.stdout.write(line.encode("utf-8", errors="replace").decode("utf-8", errors="replace"))
+                    sys.stdout.flush()
                 
                 clean_line = line.strip()
                 if clean_line.startswith("New batch run:") or clean_line.startswith("Resuming batch in:"):
