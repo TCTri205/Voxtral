@@ -1,0 +1,21 @@
+New batch run: results\05-05-2026_v2
+Found 11 files to process.
+[1/11] media_148280_1767762915627.mp3 ... Done (Total RTF: 2.476, Inference RTF: 2.464)
+[2/11] media_148284_1767766514646 (1).mp3 ... Done (Total RTF: 2.283, Inference RTF: 2.258)
+[3/11] media_148393_1767860211615 (1).mp3 ... Done (Total RTF: 2.416, Inference RTF: 2.379)
+[4/11] media_148394_1767860189485 (1).mp3 ... Done (Total RTF: 2.309, Inference RTF: 2.274)
+[5/11] media_148414_1767922241264 (1).mp3 ... Done (Total RTF: 2.588, Inference RTF: 2.568)
+[6/11] media_148439_1767926711644 (1).mp3 ... Done (Total RTF: 2.410, Inference RTF: 2.379)
+[7/11] media_148954_1768789819598 (1).mp3 ... Done (Total RTF: 2.484, Inference RTF: 2.473)
+[8/11] media_149291_1769069811005.mp3 ... Done (Total RTF: 2.391, Inference RTF: 2.384)
+[9/11] media_149733_1769589919400.mp3 ... Done (Total RTF: 1.507, Inference RTF: 1.496)
+[10/11] silence_60s.wav ... Done (Total RTF: 0.061, Inference RTF: 0.043)
+[11/11] stochastic_noise_60s.wav ... Done (Total RTF: 0.058, Inference RTF: 0.042)
+
+Batch complete. results in results\05-05-2026_v2\results.json
+Processed: 11/11 success
+Avg Total RTF: 1.908
+Avg Inference RTF: 1.887
+
+Generating evaluation report: results\05-05-2026_v2\report.md ...
+Report generated successfully.

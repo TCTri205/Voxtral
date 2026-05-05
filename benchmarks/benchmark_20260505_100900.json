@@ -1,0 +1,32 @@
+{
+    "engine": "voxtral",
+    "timestamp_start": "20260505_100900",
+    "timestamp_end": "2026-05-05 10:10:00",
+    "runs_passed": 3,
+    "runs_aggregated": 3,
+    "averages": {
+        "total_rtf": 1.923878787878788,
+        "inference_rtf": 1.9008181818181817,
+        "cer_percentage": 38.397666666666666
+    },
+    "details": [
+        {
+            "dir": "results\\05-05-2026_v1",
+            "avg_total_rtf": 1.9445454545454544,
+            "avg_inf_rtf": 1.9203636363636363,
+            "avg_cer": 0.39632727272727275
+        },
+        {
+            "dir": "results\\05-05-2026_v2",
+            "avg_total_rtf": 1.9075454545454547,
+            "avg_inf_rtf": 1.887272727272727,
+            "avg_cer": 0.38457272727272723
+        },
+        {
+            "dir": "results\\05-05-2026_v3",
+            "avg_total_rtf": 1.919545454545455,
+            "avg_inf_rtf": 1.8948181818181817,
+            "avg_cer": 0.37103
+        }
+    ]
+}
