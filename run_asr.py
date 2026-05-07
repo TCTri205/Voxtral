@@ -123,7 +123,7 @@ async def transcription_client(
                 "session": {
                     "transcription_delay_ms": delay,
                     "modalities": ["text"],
-                    "temperature": 0.1,
+                    "temperature": 0.0,
                     "language": language  # Language hint for ASR
                 }
             }
@@ -210,6 +210,7 @@ async def transcription_client(
                     final_transcript = data.get('transcript', '')
                     vad_config = data.get("vad_config")
                     vad_result = data.get("vad_result")
+                    lang_collapse_retries = data.get("lang_collapse_retries")
                     
                     if not transcript:
                         # If no deltas were received (e.g. silence), print the final result directly
@@ -264,7 +265,8 @@ async def transcription_client(
                 "bytes_sent": bytes_sent,
                 "delay_ms": delay,
                 "vad_config": vad_config,
-                "vad_result": vad_result
+                "vad_result": vad_result,
+                "lang_collapse_retries": lang_collapse_retries
             }
 
     except Exception as e:

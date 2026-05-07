@@ -54,8 +54,7 @@ ENABLE_LANG_COLLAPSE_RECOVERY = True  # Feature flag
 # ---------------------------------------------------------------------------
 # Server revision fingerprint — printed at startup for Colab verification
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-07.2"  # bump this string on every push
-
+_SERVER_VERSION = "2026-05-07.3"  # bump this string on every push
 
 def _vad_config_metadata() -> dict:
     return {
@@ -88,6 +87,8 @@ def _detect_language_collapse(transcript: str) -> dict:
     Uses the ratio of ASCII alphabetic characters to total non-whitespace characters.
     """
     text = transcript.strip()
+    if len(text) == 0:
+        return {"is_collapsed": True, "ascii_ratio": 0.0, "reason": "empty_transcript"}
     if len(text) < LANG_COLLAPSE_MIN_CHARS:
         return {"is_collapsed": False, "ascii_ratio": 0.0, "reason": "too_short"}
     
@@ -1032,6 +1033,7 @@ async def realtime_endpoint(websocket: WebSocket):
                                         "transcript": transcript,
                                         "vad_config": inference_payload.get("vad_config"),
                                         "vad_result": inference_payload.get("vad_result"),
+                                        "lang_collapse_retries": inference_payload.get("lang_collapse_retries"),
                                     }
                                 )
                             )
