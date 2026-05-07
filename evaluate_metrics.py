@@ -50,7 +50,11 @@ def main():
     report.append("| :--- | :--- | :--- | :--- | :--- | :--- |")
     
     total_cer = 0
-    gt_count = 0
+    cer_file_count = 0
+    cer_total_files_with_gt = 0
+    cer_excluded_files = []
+    empty_on_speech_count = 0
+    deletion_count = 0
     
     for res in results:
         fname = res["file"]
@@ -68,6 +72,7 @@ def main():
         if status != "success":
             grade = "ERROR"
         elif fname in gt_data:
+            cer_total_files_with_gt += 1
             ref = normalize_japanese(gt_data[fname])
             hyp = normalize_japanese(text)
             
@@ -75,11 +80,14 @@ def main():
                 # Transcript is empty but reference is not - likely a system failure
                 cer = "N/A (Empty)"
                 grade = "F (Fail)"
+                cer_excluded_files.append(fname)
+                empty_on_speech_count += 1
+                deletion_count += 1
             else:
                 cer_val = calculate_cer(hyp, ref)
                 cer = f"{cer_val*100:.2f}%"
                 total_cer += cer_val
-                gt_count += 1
+                cer_file_count += 1
                 grade = classify_quality(hrs if "silence" in fname.lower() else 0, cer_val, rtf_inf)
         else:
             # Fallback grade based on RTF and RF
@@ -94,9 +102,17 @@ def main():
         json.dump(results, f, ensure_ascii=False, indent=4)
     print(f"Updated results saved to: {args.results_json}")
 
-    if gt_count > 0:
-        avg_cer = (total_cer / gt_count) * 100
-        report.append(f"\n**Average CER (Ground Truth): {avg_cer:.2f}%**")
+    report.append("\n## CER Accounting")
+    report.append(f"- CER files included: **{cer_file_count}/{cer_total_files_with_gt}**")
+    report.append(f"- CER excluded files: **{len(cer_excluded_files)}**")
+    report.append(f"- Empty-on-speech count: **{empty_on_speech_count}**")
+    report.append(f"- Deletion count: **{deletion_count}**")
+    if cer_excluded_files:
+        report.append("- Excluded from CER average: " + ", ".join(f"`{name}`" for name in cer_excluded_files))
+
+    if cer_file_count > 0:
+        avg_cer = (total_cer / cer_file_count) * 100
+        report.append(f"\n**Average CER (Ground Truth): {avg_cer:.2f}% ({cer_file_count}/{cer_total_files_with_gt} files; {len(cer_excluded_files)} excluded)**")
 
     final_report = "\n".join(report)
     print(final_report)

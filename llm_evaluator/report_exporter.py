@@ -2,11 +2,11 @@ import csv
 import json
 import os
 from typing import List, Dict, Any
-from .schema import EvaluationResult
+from .schema import EvaluationCandidate, EvaluationResult
 
 def parse_cer(cer_str: str | None) -> float | None:
     """Parses CER string like '65.49%' to float 0.6549."""
-    if not cer_str or cer_str == "N/A":
+    if not cer_str or cer_str == "N/A" or cer_str.startswith("N/A"):
         return None
     try:
         val = float(cer_str.replace("%", "").strip())
@@ -14,9 +14,34 @@ def parse_cer(cer_str: str | None) -> float | None:
     except ValueError:
         return None
 
-def apply_heuristics(results: List[EvaluationResult]) -> List[EvaluationResult]:
+def _has_empty_ground_truth(candidate: EvaluationCandidate | None) -> bool:
+    if candidate is None:
+        return False
+
+    gt_values = [candidate.gt_plain, candidate.gt_timestamped]
+    has_explicit_empty = any(gt is not None and gt.strip() == "" for gt in gt_values)
+    has_non_empty = any(gt is not None and gt.strip() != "" for gt in gt_values)
+    return has_explicit_empty and not has_non_empty
+
+
+def apply_heuristics(
+    results: List[EvaluationResult],
+    candidates: List[EvaluationCandidate] | None = None,
+) -> List[EvaluationResult]:
     """Applies heuristic overrides to evaluation results."""
+    candidate_by_filename = {c.filename: c for c in candidates or []}
+
     for res in results:
+        candidate = candidate_by_filename.get(res.filename)
+        hyp = candidate.hyp_transcript if candidate is not None else res.evidence_hyp_text
+        if (hyp or "").strip() == "" and _has_empty_ground_truth(candidate):
+            res.review_status = "auto_accept"
+            res.primary_error = "none"
+            res.severity = "none"
+            res.has_hallucination = False
+            res.reasoning = "Empty transcript matches explicit empty ground truth."
+            continue
+
         cer = parse_cer(res.existing_cer)
         if cer is not None and cer > 0.5:
             if not res.has_hallucination:
@@ -46,6 +71,7 @@ def export_summary_json(results: List[EvaluationResult], run_dir: str, model_use
     total = len(results)
     hallucinated = sum(1 for r in results if r.has_hallucination)
     manual_review = sum(1 for r in results if r.review_status == "manual_review")
+    empty_on_speech_count = sum(1 for r in results if parse_cer(r.existing_cer) is None and r.existing_cer == "N/A (Empty)")
     
     error_dist = {}
     severity_dist = {}
@@ -67,6 +93,9 @@ def export_summary_json(results: List[EvaluationResult], run_dir: str, model_use
             total_rtf += r.existing_inference_rtf
             rtf_count += 1
 
+    cer_total_files = candidate_stats.get("cer_total_files", candidate_stats.get("with_gt_plain", total))
+    cer_excluded_files = candidate_stats.get("cer_excluded_files", empty_on_speech_count)
+
     summary = {
         "run_dir": run_dir,
         "model_used": model_used,
@@ -74,6 +103,11 @@ def export_summary_json(results: List[EvaluationResult], run_dir: str, model_use
         "evaluated_files": total,
         "with_gt_timestamped": candidate_stats.get("with_gt_timestamped", 0),
         "without_gt_timestamped": candidate_stats.get("without_gt_timestamped", 0),
+        "cer_file_count": cer_count,
+        "cer_total_files": cer_total_files,
+        "cer_excluded_files": cer_excluded_files,
+        "empty_on_speech_count": empty_on_speech_count,
+        "deletion_count": empty_on_speech_count,
         "hallucination_rate": round(hallucinated / total, 4) if total > 0 else 0,
         "manual_review_rate": round(manual_review / total, 4) if total > 0 else 0,
         "error_distribution": error_dist,

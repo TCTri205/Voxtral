@@ -46,7 +46,29 @@ RETRY_TEMPERATURE = 0.5  # Temperature for retry attempts
 # ---------------------------------------------------------------------------
 # Server revision fingerprint — printed at startup for Colab verification
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-04-24.1"  # bump this string on every push
+_SERVER_VERSION = "2026-05-07.1"  # bump this string on every push
+
+
+def _vad_config_metadata() -> dict:
+    return {
+        "VAD_THRESHOLD": VAD_THRESHOLD,
+        "VAD_PADDING_MS": VAD_PADDING_MS,
+        "VAD_MIN_SPEECH_DURATION_MS": VAD_MIN_SPEECH_DURATION_MS,
+        "VAD_MIN_SILENCE_DURATION_MS": VAD_MIN_SILENCE_DURATION_MS,
+        "VAD_SEGMENT_SILENCE_MS": VAD_SEGMENT_SILENCE_MS,
+        "VAD_CHUNK_PADDING_MS": VAD_CHUNK_PADDING_MS,
+        "CHUNK_LIMIT_SEC": CHUNK_LIMIT_SEC,
+        "CHUNK_OVERLAP_SEC": CHUNK_OVERLAP_SEC,
+        "_SERVER_VERSION": _SERVER_VERSION,
+    }
+
+
+def _inference_result(transcript: str, vad_result: dict | None = None) -> dict:
+    return {
+        "transcript": transcript,
+        "vad_config": _vad_config_metadata(),
+        "vad_result": vad_result or {},
+    }
 
 
 def _server_fingerprint() -> str:
@@ -208,7 +230,8 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
                         "audio_np": sub_audio,
                         "start_sec": actual_start_sec,
                         "end_sec": actual_end_sec,
-                        "segments_count": len(current_chunk_segments) if sub_pos == 0 else 0
+                        "segments_count": len(current_chunk_segments) if sub_pos == 0 else 0,
+                        "is_sub_chunk": True,
                     })
                     sub_pos += max_chunk_samples - overlap_samples
             else:
@@ -216,7 +239,8 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
                     "audio_np": chunk_audio,
                     "start_sec": start_idx / sample_rate,
                     "end_sec": end_idx / sample_rate,
-                    "segments_count": len(current_chunk_segments)
+                    "segments_count": len(current_chunk_segments),
+                    "is_sub_chunk": False,
                 })
             
             # Start new chunk
@@ -239,7 +263,8 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
                 "audio_np": sub_audio,
                 "start_sec": (start_idx + sub_pos) / sample_rate,
                 "end_sec": (start_idx + sub_end) / sample_rate,
-                "segments_count": len(current_chunk_segments) if sub_pos == 0 else 0
+                "segments_count": len(current_chunk_segments) if sub_pos == 0 else 0,
+                "is_sub_chunk": True,
             })
             sub_pos += max_chunk_samples - overlap_samples
     else:
@@ -247,7 +272,8 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
             "audio_np": chunk_audio,
             "start_sec": start_idx / sample_rate,
             "end_sec": end_idx / sample_rate,
-            "segments_count": len(current_chunk_segments)
+            "segments_count": len(current_chunk_segments),
+            "is_sub_chunk": False,
         })
         
     return chunks
@@ -414,13 +440,32 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
     }
 
 
-def _merge_chunk_transcripts(transcripts: list, overlap_sec: float = CHUNK_OVERLAP_SEC) -> str:
+def _exact_overlap_chars(left: str, right: str) -> int:
+    max_len = min(len(left), len(right))
+    for size in range(max_len, 0, -1):
+        if left.endswith(right[:size]):
+            return size
+    return 0
+
+
+def _chunks_time_overlap(prev_info: dict | None, current_info: dict | None) -> bool:
+    if not prev_info or not current_info:
+        return False
+    prev_end = prev_info.get("end_sec")
+    current_start = current_info.get("start_sec")
+    if prev_end is None or current_start is None:
+        return False
+    return current_start < prev_end
+
+
+def _merge_chunk_transcripts(transcripts: list, chunk_infos: list | None = None, overlap_sec: float = CHUNK_OVERLAP_SEC) -> str:
     """
-    Merge transcripts from chunks. For VAD-aware chunks, we just concatenate.
+    Merge transcripts from chunks, trimming exact text duplicated by overlapping sub-chunks.
     
     Args:
         transcripts: List of (transcript, duration) tuples
-        overlap_sec: Expected overlap duration in seconds (ignored for now as VAD chunks don't overlap)
+        chunk_infos: Optional chunk metadata containing start_sec/end_sec.
+        overlap_sec: Kept for backward compatibility.
     
     Returns:
         Merged transcript string
@@ -435,6 +480,12 @@ def _merge_chunk_transcripts(transcripts: list, overlap_sec: float = CHUNK_OVERL
     for i in range(1, len(transcripts)):
         chunk_text = transcripts[i][0]
         if chunk_text:
+            prev_info = chunk_infos[i - 1] if chunk_infos and i - 1 < len(chunk_infos) else None
+            current_info = chunk_infos[i] if chunk_infos and i < len(chunk_infos) else None
+            if _chunks_time_overlap(prev_info, current_info):
+                overlap_chars = _exact_overlap_chars(merged, chunk_text)
+                if overlap_chars:
+                    chunk_text = chunk_text[overlap_chars:]
             merged += chunk_text  # No space needed for Japanese
     
     return merged.strip()
@@ -500,7 +551,7 @@ def load_voxtral_model(model_id: str, load_in_4bit: bool = False):
     print(f"[startup]   device: {next(model.parameters()).device}", flush=True)
 
 
-def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> str:
+def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> dict:
     """Blocking inference — runs in a thread pool to keep the event loop free."""
     t0 = time.time()
     _slog(conn_id, f"inference_started  audio_bytes={len(audio_bytes)}")
@@ -521,7 +572,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     if not vad_info.get("speech_detected", True):
         # No speech detected - return empty transcript
         _slog(conn_id, f"VAD: No speech detected in {original_duration:.2f}s audio, skipping inference")
-        return ""
+        return _inference_result("", vad_info)
     
     trimmed_duration = vad_info.get("trimmed_duration", original_duration)
     if trimmed_duration < original_duration * 0.95:  # Only log if we actually trimmed >5%
@@ -530,7 +581,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     # Check if trimmed audio is too short
     if trimmed_duration < 0.1:  # Less than 100ms
         _slog(conn_id, f"VAD: Trimmed audio too short ({trimmed_duration:.3f}s), skipping inference")
-        return ""
+        return _inference_result("", vad_info)
 
     # =========================================================================
     # PHA 2: VAD-AWARE CHUNKED INFERENCE 
@@ -578,6 +629,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             # Process each chunk
             _slog(conn_id, f"VAD Chunking: Audio split into {len(chunks)} speech-only chunks")
             transcripts = []
+            chunk_infos = []
             
             for i, chunk_info in enumerate(chunks):
                 _slog(conn_id, f"Processing chunk {i+1}/{len(chunks)} ({chunk_info['start_sec']:.1f}s-{chunk_info['end_sec']:.1f}s, {chunk_info['segments_count']} segs)")
@@ -590,9 +642,10 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 _slog(conn_id, f"Chunk {i+1} done in {chunk_elapsed:.2f}s, transcript_len={len(chunk_transcript)}")
                 duration = chunk_info['end_sec'] - chunk_info['start_sec']
                 transcripts.append((chunk_transcript, duration))
+                chunk_infos.append(chunk_info)
             
             # Merge transcripts
-            transcript = _merge_chunk_transcripts(transcripts)
+            transcript = _merge_chunk_transcripts(transcripts, chunk_infos)
             elapsed = time.time() - t0
             _slog(conn_id, f"chunked_inference_finished  elapsed={elapsed:.2f}s  total_chunks={len(chunks)}  transcript_len={len(transcript)}")
             return transcript, elapsed
@@ -623,10 +676,12 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
 
     # LOG ONLY: Do not reject output - return transcript for evaluation
     _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}  hallucination_warning={guardrail_result['is_suspicious']}")
-    return transcript
+    vad_result = dict(vad_info)
+    vad_result["hallucination_warning"] = guardrail_result["is_suspicious"]
+    return _inference_result(transcript, vad_result)
 
 
-async def run_inference(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> str:
+async def run_inference(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> dict:
     """Async wrapper that offloads blocking inference to a thread pool."""
     return await asyncio.to_thread(_run_inference_sync, audio_bytes, session_config, conn_id, on_delta)
 
@@ -796,6 +851,12 @@ async def realtime_endpoint(websocket: WebSocket):
                                     {
                                         "type": "response.audio_transcript.done",
                                         "transcript": "",
+                                        "vad_config": _vad_config_metadata(),
+                                        "vad_result": {
+                                            "speech_detected": False,
+                                            "original_duration": len(audio_buffer) / 32000.0,
+                                            "trimmed_duration": len(audio_buffer) / 32000.0,
+                                        },
                                     }
                                 )
                             )
@@ -826,7 +887,8 @@ async def realtime_endpoint(websocket: WebSocket):
                                         json.dumps({"type": "session.keepalive"})
                                     )
                                     _slog(conn_id, f"keepalive_sent  n={keepalive_n}")
-                            transcript = inference_task.result()
+                            inference_payload = inference_task.result()
+                            transcript = inference_payload.get("transcript", "")
                             
                             # Flush delta messages before sending done
                             if delta_futures:
@@ -836,6 +898,8 @@ async def realtime_endpoint(websocket: WebSocket):
                                     {
                                         "type": "response.audio_transcript.done",
                                         "transcript": transcript,
+                                        "vad_config": inference_payload.get("vad_config"),
+                                        "vad_result": inference_payload.get("vad_result"),
                                     }
                                 )
                             )
@@ -855,7 +919,16 @@ async def realtime_endpoint(websocket: WebSocket):
                     _slog(conn_id, "commit_received  buffer_empty → sending empty transcript")
                     await websocket.send_text(
                         json.dumps(
-                            {"type": "response.audio_transcript.done", "transcript": ""}
+                            {
+                                "type": "response.audio_transcript.done",
+                                "transcript": "",
+                                "vad_config": _vad_config_metadata(),
+                                "vad_result": {
+                                    "speech_detected": False,
+                                    "original_duration": 0.0,
+                                    "trimmed_duration": 0.0,
+                                },
+                            }
                         )
                     )
 

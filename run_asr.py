@@ -176,6 +176,8 @@ async def transcription_client(
 
             # 4. Wait Phase
             transcript = ""
+            vad_config = None
+            vad_result = None
             keepalive_count = 0
             last_msg_type = None
             t_start_wait = time.time()
@@ -206,6 +208,8 @@ async def transcription_client(
                 if data["type"] == "response.audio_transcript.done":
                     # Final transcript might be different from accumulated deltas if server cleans it up
                     final_transcript = data.get('transcript', '')
+                    vad_config = data.get("vad_config")
+                    vad_result = data.get("vad_result")
                     
                     if not transcript:
                         # If no deltas were received (e.g. silence), print the final result directly
@@ -216,6 +220,11 @@ async def transcription_client(
                     
                     transcript = final_transcript
                     print() # End of line
+                    if vad_config or vad_result:
+                        log(
+                            f"[VAD] {os.path.basename(audio_path)} config={json.dumps(vad_config, ensure_ascii=False)} result={json.dumps(vad_result, ensure_ascii=False)}",
+                            log_file,
+                        )
                     t_received = time.time()
                     break
 
@@ -253,7 +262,9 @@ async def transcription_client(
                 "keepalive_count": keepalive_count,
                 "chunks_sent": chunks_sent,
                 "bytes_sent": bytes_sent,
-                "delay_ms": delay
+                "delay_ms": delay,
+                "vad_config": vad_config,
+                "vad_result": vad_result
             }
 
     except Exception as e:

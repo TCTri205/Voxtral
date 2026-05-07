@@ -53,6 +53,15 @@ async def main():
     stats = {
         "with_gt_timestamped": sum(1 for c in candidates if c.gt_timestamped),
         "without_gt_timestamped": sum(1 for c in candidates if not c.gt_timestamped),
+        "with_gt_plain": sum(1 for c in candidates if c.gt_plain is not None),
+        "cer_total_files": sum(1 for c in candidates if c.gt_plain is not None),
+        "cer_excluded_files": sum(
+            1
+            for c in candidates
+            if c.gt_plain is not None
+            and c.gt_plain.strip() != ""
+            and c.hyp_transcript.strip() == ""
+        ),
         "hrs": calculate_hrs(full_results)
     }
     
@@ -75,7 +84,7 @@ async def main():
         sys.exit(1)
     
     # 3. Apply Heuristics
-    results = apply_heuristics(results)
+    results = apply_heuristics(results, candidates)
     
     # 4. Export Reports
     details_csv = os.path.join(run_dir, "llm_eval_details.csv")
