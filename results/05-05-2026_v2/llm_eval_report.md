@@ -2,8 +2,8 @@
 
 - **Run Directory**: `results\05-05-2026_v2`
 - **Model Used**: `llama-3.3-70b-versatile`
-- **Hallucination Rate**: 90.91%
-- **Manual Review Rate**: 90.91%
+- **Hallucination Rate**: 81.82%
+- **Manual Review Rate**: 81.82%
 
 ## Statistics
 
@@ -11,15 +11,14 @@
 | Error Type | Count |
 | :--- | :--- |
 | insertion | 9 |
-| silence_text | 1 |
-| none | 1 |
+| none | 2 |
 
 ### Severity Distribution
 | Severity | Count |
 | :--- | :--- |
 | medium | 7 |
-| high | 3 |
-| none | 1 |
+| high | 2 |
+| none | 2 |
 
 ## Detailed Results
 
@@ -34,5 +33,5 @@
 | `media_148954_1768789819598 (1).mp3` | ❌ Yes | insertion | medium | 34.14% | 👀 Manual |
 | `media_149291_1769069811005.mp3` | ❌ Yes | insertion | medium | 54.51% | 👀 Manual |
 | `media_149733_1769589919400.mp3` | ❌ Yes | insertion | medium | 56.13% | 👀 Manual |
-| `silence_60s.wav` | ❌ Yes | silence_text | high | 0.00% | 👀 Manual |
+| `silence_60s.wav` | ✅ No | none | none | 0.00% | 🤖 Auto |
 | `stochastic_noise_60s.wav` | ✅ No | none | none | 0.00% | 🤖 Auto |

@@ -2,24 +2,24 @@
 
 - **Run Directory**: `results\05-05-2026_v1`
 - **Model Used**: `llama-3.3-70b-versatile`
-- **Hallucination Rate**: 90.91%
-- **Manual Review Rate**: 90.91%
+- **Hallucination Rate**: 81.82%
+- **Manual Review Rate**: 81.82%
 
 ## Statistics
 
 ### Error Type Distribution
 | Error Type | Count |
 | :--- | :--- |
-| insertion | 9 |
-| silence_text | 1 |
-| none | 1 |
+| insertion | 8 |
+| content_replacement | 1 |
+| none | 2 |
 
 ### Severity Distribution
 | Severity | Count |
 | :--- | :--- |
-| medium | 5 |
-| high | 5 |
-| none | 1 |
+| medium | 6 |
+| high | 3 |
+| none | 2 |
 
 ## Detailed Results
 
@@ -32,7 +32,7 @@
 | `media_148414_1767922241264 (1).mp3` | ❌ Yes | insertion | high | 54.85% | 👀 Manual |
 | `media_148439_1767926711644 (1).mp3` | ❌ Yes | insertion | high | 34.13% | 👀 Manual |
 | `media_148954_1768789819598 (1).mp3` | ❌ Yes | insertion | medium | 34.31% | 👀 Manual |
-| `media_149291_1769069811005.mp3` | ❌ Yes | insertion | high | 64.88% | 👀 Manual |
-| `media_149733_1769589919400.mp3` | ❌ Yes | insertion | high | 58.28% | 👀 Manual |
-| `silence_60s.wav` | ❌ Yes | silence_text | high | 0.00% | 👀 Manual |
+| `media_149291_1769069811005.mp3` | ❌ Yes | content_replacement | high | 64.88% | 👀 Manual |
+| `media_149733_1769589919400.mp3` | ❌ Yes | insertion | medium | 58.28% | 👀 Manual |
+| `silence_60s.wav` | ✅ No | none | none | 0.00% | 🤖 Auto |
 | `stochastic_noise_60s.wav` | ✅ No | none | none | 0.00% | 🤖 Auto |

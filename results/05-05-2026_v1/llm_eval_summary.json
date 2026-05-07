@@ -5,17 +5,22 @@
     "evaluated_files": 11,
     "with_gt_timestamped": 9,
     "without_gt_timestamped": 2,
-    "hallucination_rate": 0.9091,
-    "manual_review_rate": 0.9091,
+    "cer_file_count": 11,
+    "cer_total_files": 11,
+    "cer_excluded_files": 0,
+    "empty_on_speech_count": 0,
+    "deletion_count": 0,
+    "hallucination_rate": 0.8182,
+    "manual_review_rate": 0.8182,
     "error_distribution": {
-        "insertion": 9,
-        "silence_text": 1,
-        "none": 1
+        "insertion": 8,
+        "content_replacement": 1,
+        "none": 2
     },
     "severity_distribution": {
-        "medium": 5,
-        "high": 5,
-        "none": 1
+        "medium": 6,
+        "high": 3,
+        "none": 2
     },
     "existing_metrics": {
         "avg_cer": "39.63%",
