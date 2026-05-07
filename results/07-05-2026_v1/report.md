@@ -20,9 +20,12 @@ HRS (Hallucination Rate on Silence): **0.000 CPM**
 | `stochastic_noise_60s.wav` | success | 0.042 | 0 | 0.00% | S (Excellent) |
 
 ## CER Accounting
-- CER files included: **11/11**
-- CER excluded files: **0**
+- CER files included: **9/11**
+- CER excluded files: **2**
+  - Empty-on-speech (Fail): 0
+  - Silence/Noise (Intentional): 2
 - Empty-on-speech count: **0**
 - Deletion count: **0**
+- Excluded from CER average: `silence_60s.wav`, `stochastic_noise_60s.wav`
 
-**Average CER (Ground Truth): 38.55% (11/11 files; 0 excluded)**
+**Average CER (Ground Truth): 47.11% (9/11 files; 2 excluded)**

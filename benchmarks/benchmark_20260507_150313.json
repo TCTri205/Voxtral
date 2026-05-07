@@ -1,0 +1,44 @@
+{
+    "engine": "voxtral",
+    "timestamp_start": "20260507_150313",
+    "timestamp_end": "2026-05-07 15:03:13",
+    "runs_passed": 5,
+    "runs_aggregated": 5,
+    "averages": {
+        "total_rtf": 2.2130363636363635,
+        "inference_rtf": 2.1922909090909095,
+        "cer_percentage": 43.11266666666667
+    },
+    "details": [
+        {
+            "dir": "results\\07-05-2026_v1",
+            "avg_total_rtf": 1.9403636363636367,
+            "avg_inf_rtf": 1.9218181818181819,
+            "avg_cer": 0.4711444444444445
+        },
+        {
+            "dir": "results\\07-05-2026_v2",
+            "avg_total_rtf": 1.908363636363636,
+            "avg_inf_rtf": 1.888545454545455,
+            "avg_cer": 0.46205555555555555
+        },
+        {
+            "dir": "results\\07-05-2026_v3",
+            "avg_total_rtf": 1.901454545454545,
+            "avg_inf_rtf": 1.8806363636363637,
+            "avg_cer": 0.45272222222222225
+        },
+        {
+            "dir": "results\\07-05-2026_v4",
+            "avg_total_rtf": 2.6957272727272725,
+            "avg_inf_rtf": 2.673636363636364,
+            "avg_cer": 0.38485555555555556
+        },
+        {
+            "dir": "results\\07-05-2026_v5",
+            "avg_total_rtf": 2.619272727272728,
+            "avg_inf_rtf": 2.596818181818182,
+            "avg_cer": 0.38485555555555556
+        }
+    ]
+}

@@ -227,6 +227,11 @@ def aggregate_stats(run_dirs, timestamp, engine):
         total_cer = 0
         cer_count = 0
         for r in success_results:
+            fname = r.get("file", "").lower()
+            # Exclude silence/noise files from CER average
+            if any(kw in fname for kw in ["silence", "noise", "stochastic"]):
+                continue
+
             cer_str = r.get("cer", "N/A")
             if isinstance(cer_str, str) and cer_str.endswith("%"):
                 try:

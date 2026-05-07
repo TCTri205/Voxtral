@@ -6,6 +6,7 @@ __pycache__/
 .ipynb_checkpoints/
 .kilo/
 .qwen/
+.claude/
 # results*.json
 # audio/silence_10s.wav
 # audio/white_noise_5s.wav

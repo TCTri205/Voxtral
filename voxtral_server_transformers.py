@@ -4,6 +4,7 @@ import base64
 import asyncio
 import uuid
 import time
+import math
 import numpy as np
 import torch
 import uvicorn
@@ -251,24 +252,34 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
             
             # Sub-chunking if a single segment (or a previously started chunk) is somehow longer than max_chunk_sec
             if len(chunk_audio) > max_chunk_samples:
-                # We have to split it blindly if a continuous speech piece is > max_chunk_sec
-                sub_pos = 0
-                overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
-                while sub_pos < len(chunk_audio):
+                # Split evenly with consistent overlap between chunks
+                chunk_duration = len(chunk_audio) / sample_rate
+                overlap_sec = CHUNK_OVERLAP_SEC
+
+                # Calculate number of even chunks needed
+                n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
+
+                # Calculate effective step to distribute chunks evenly
+                effective_duration = chunk_duration - overlap_sec
+                step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
+                step_samples = int(step * sample_rate)
+                overlap_samples = int(overlap_sec * sample_rate)
+
+                for i in range(n_chunks):
+                    sub_pos = int(i * step_samples)
                     sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
                     sub_audio = chunk_audio[sub_pos:sub_end]
-                    
+
                     actual_start_sec = (start_idx + sub_pos) / sample_rate
                     actual_end_sec = (start_idx + sub_end) / sample_rate
-                    
+
                     chunks.append({
                         "audio_np": sub_audio,
                         "start_sec": actual_start_sec,
                         "end_sec": actual_end_sec,
-                        "segments_count": len(current_chunk_segments) if sub_pos == 0 else 0,
+                        "segments_count": len(current_chunk_segments) if i == 0 else 0,
                         "is_sub_chunk": True,
                     })
-                    sub_pos += max_chunk_samples - overlap_samples
             else:
                 chunks.append({
                     "audio_np": chunk_audio,
@@ -289,19 +300,30 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
     chunk_audio = audio_np[start_idx:end_idx]
     
     if len(chunk_audio) > max_chunk_samples:
-        sub_pos = 0
-        overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
-        while sub_pos < len(chunk_audio):
+        # Split evenly with consistent overlap between chunks
+        chunk_duration = len(chunk_audio) / sample_rate
+        overlap_sec = CHUNK_OVERLAP_SEC
+
+        # Calculate number of even chunks needed
+        n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
+
+        # Calculate effective step to distribute chunks evenly
+        effective_duration = chunk_duration - overlap_sec
+        step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
+        step_samples = int(step * sample_rate)
+
+        for i in range(n_chunks):
+            sub_pos = int(i * step_samples)
             sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
             sub_audio = chunk_audio[sub_pos:sub_end]
+
             chunks.append({
                 "audio_np": sub_audio,
                 "start_sec": (start_idx + sub_pos) / sample_rate,
                 "end_sec": (start_idx + sub_end) / sample_rate,
-                "segments_count": len(current_chunk_segments) if sub_pos == 0 else 0,
+                "segments_count": len(current_chunk_segments) if i == 0 else 0,
                 "is_sub_chunk": True,
             })
-            sub_pos += max_chunk_samples - overlap_samples
     else:
         chunks.append({
             "audio_np": chunk_audio,

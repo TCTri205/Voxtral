@@ -1,0 +1,86 @@
+New batch run: results\07-05-2026_v4
+Found 11 files to process.
+[1/11] media_148280_1767762915627.mp3 ... [VAD] media_148280_1767762915627.mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 80.08, "trimmed_duration": 78.692, "speech_detected": true, "first_speech_start_sec": 1.378, "last_speech_end_sec": 79.07, "num_segments": 28, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": false}
+Done (Total RTF: 3.515, Inference RTF: 3.501)
+[2/11] media_148284_1767766514646 (1).mp3 ... [VAD] media_148284_1767766514646 (1).mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 40.4, "trimmed_duration": 37.54, "speech_detected": true, "first_speech_start_sec": 0.77, "last_speech_end_sec": 37.31, "num_segments": 12, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": false}
+Done (Total RTF: 4.147, Inference RTF: 4.117)
+[3/11] media_148393_1767860211615 (1).mp3 ... [VAD] media_148393_1767860211615 (1).mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 25.64, "trimmed_duration": 22.596, "speech_detected": true, "first_speech_start_sec": 1.442, "last_speech_end_sec": 23.038, "num_segments": 5, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": false}
+Done (Total RTF: 3.991, Inference RTF: 3.948)
+[4/11] media_148394_1767860189485 (1).mp3 ... [VAD] media_148394_1767860189485 (1).mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 31.28, "trimmed_duration": 29.124, "speech_detected": true, "first_speech_start_sec": 0.93, "last_speech_end_sec": 29.054, "num_segments": 9, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": false}
+Done (Total RTF: 2.479, Inference RTF: 2.443)
+[5/11] media_148414_1767922241264 (1).mp3 ... [VAD] media_148414_1767922241264 (1).mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 53.36, "trimmed_duration": 52.388, "speech_detected": true, "first_speech_start_sec": 0.77, "last_speech_end_sec": 52.158, "num_segments": 7, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": true}
+Done (Total RTF: 3.707, Inference RTF: 3.686)
+[6/11] media_148439_1767926711644 (1).mp3 ... [VAD] media_148439_1767926711644 (1).mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 34.24, "trimmed_duration": 31.14, "speech_detected": true, "first_speech_start_sec": 2.338, "last_speech_end_sec": 32.478, "num_segments": 12, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": false}
+Done (Total RTF: 2.555, Inference RTF: 2.520)
+[7/11] media_148954_1768789819598 (1).mp3 ... [VAD] media_148954_1768789819598 (1).mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 95.96, "trimmed_duration": 92.516, "speech_detected": true, "first_speech_start_sec": 1.602, "last_speech_end_sec": 93.118, "num_segments": 13, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": false}
+Done (Total RTF: 3.426, Inference RTF: 3.414)
+[8/11] media_149291_1769069811005.mp3 ... 
+[Warning] media_149291_1769069811005.mp3: High keepalive count (86). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (87). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (88). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (89). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (90). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (91). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (92). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (93). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (94). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (95). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (96). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (97). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (98). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (99). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (100). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (101). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (102). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (103). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (104). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (105). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (106). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (107). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (108). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (109). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (110). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (111). Server might be struggling.
+
+[Warning] media_149291_1769069811005.mp3: High keepalive count (112). Server might be struggling.
+[VAD] media_149291_1769069811005.mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 156.64, "trimmed_duration": 155.556, "speech_detected": true, "first_speech_start_sec": 1.026, "last_speech_end_sec": 155.582, "num_segments": 41, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": false}
+Done (Total RTF: 3.638, Inference RTF: 3.631)
+[9/11] media_149733_1769589919400.mp3 ... [VAD] media_149733_1769589919400.mp3 config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"original_duration": 108.56, "trimmed_duration": 105.924, "speech_detected": true, "first_speech_start_sec": 0.834, "last_speech_end_sec": 105.758, "num_segments": 25, "vad_threshold": 0.5, "min_speech_duration_ms": 250, "hallucination_warning": false}
+Done (Total RTF: 2.062, Inference RTF: 2.052)
+[10/11] silence_60s.wav ... [VAD] silence_60s.wav config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"speech_detected": false, "original_duration": 60.0, "trimmed_duration": 60.0}
+Done (Total RTF: 0.069, Inference RTF: 0.050)
+[11/11] stochastic_noise_60s.wav ... [VAD] stochastic_noise_60s.wav config={"VAD_THRESHOLD": 0.5, "VAD_PADDING_MS": 500, "VAD_MIN_SPEECH_DURATION_MS": 250, "VAD_MIN_SILENCE_DURATION_MS": 100, "VAD_SEGMENT_SILENCE_MS": 800, "VAD_CHUNK_PADDING_MS": 200, "CHUNK_LIMIT_SEC": 15.0, "CHUNK_OVERLAP_SEC": 1.0, "LANG_COLLAPSE_ASCII_RATIO": 0.7, "LANG_COLLAPSE_RECOVERY": true, "_SERVER_VERSION": "2026-05-07.3"} result={"speech_detected": false, "original_duration": 60.0, "trimmed_duration": 60.0}
+Done (Total RTF: 0.064, Inference RTF: 0.048)
+
+Batch complete. results in results\07-05-2026_v4\results.json
+Processed: 11/11 success
+Avg Total RTF: 2.696
+Avg Inference RTF: 2.674
+
+Generating evaluation report: results\07-05-2026_v4\report.md ...
+Report generated successfully.

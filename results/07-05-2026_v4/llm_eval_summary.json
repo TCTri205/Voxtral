@@ -1,0 +1,29 @@
+{
+    "run_dir": "results\\07-05-2026_v4",
+    "model_used": "llama-3.3-70b-versatile",
+    "total_files": 11,
+    "evaluated_files": 11,
+    "with_gt_timestamped": 9,
+    "without_gt_timestamped": 2,
+    "cer_file_count": 11,
+    "cer_total_files": 11,
+    "cer_excluded_files": 0,
+    "empty_on_speech_count": 0,
+    "deletion_count": 0,
+    "hallucination_rate": 0.8182,
+    "manual_review_rate": 0.8182,
+    "error_distribution": {
+        "insertion": 9,
+        "none": 2
+    },
+    "severity_distribution": {
+        "medium": 7,
+        "high": 2,
+        "none": 2
+    },
+    "existing_metrics": {
+        "avg_cer": "31.49%",
+        "avg_inference_rtf": 2.674,
+        "hrs": 0.0
+    }
+}

@@ -53,6 +53,7 @@ def main():
     cer_file_count = 0
     cer_total_files_with_gt = 0
     cer_excluded_files = []
+    cer_silence_files = []
     empty_on_speech_count = 0
     deletion_count = 0
     
@@ -86,9 +87,16 @@ def main():
             else:
                 cer_val = calculate_cer(hyp, ref)
                 cer = f"{cer_val*100:.2f}%"
-                total_cer += cer_val
-                cer_file_count += 1
-                grade = classify_quality(hrs if "silence" in fname.lower() else 0, cer_val, rtf_inf)
+                
+                # Exclude silence/noise files from CER average (as per user feedback)
+                is_silence = any(kw in fname.lower() for kw in ["silence", "noise", "stochastic"])
+                if is_silence:
+                    cer_silence_files.append(fname)
+                else:
+                    total_cer += cer_val
+                    cer_file_count += 1
+                
+                grade = classify_quality(hrs if is_silence else 0, cer_val, rtf_inf)
         else:
             # Fallback grade based on RTF and RF
             grade = "A" if rtf_inf < 0.2 and rf == 0 else "B" if rtf_inf < 0.5 else "F"
@@ -104,15 +112,20 @@ def main():
 
     report.append("\n## CER Accounting")
     report.append(f"- CER files included: **{cer_file_count}/{cer_total_files_with_gt}**")
-    report.append(f"- CER excluded files: **{len(cer_excluded_files)}**")
+    report.append(f"- CER excluded files: **{len(cer_excluded_files) + len(cer_silence_files)}**")
+    report.append(f"  - Empty-on-speech (Fail): {len(cer_excluded_files)}")
+    report.append(f"  - Silence/Noise (Intentional): {len(cer_silence_files)}")
     report.append(f"- Empty-on-speech count: **{empty_on_speech_count}**")
     report.append(f"- Deletion count: **{deletion_count}**")
-    if cer_excluded_files:
-        report.append("- Excluded from CER average: " + ", ".join(f"`{name}`" for name in cer_excluded_files))
+    
+    all_excluded = cer_excluded_files + cer_silence_files
+    if all_excluded:
+        report.append("- Excluded from CER average: " + ", ".join(f"`{name}`" for name in all_excluded))
 
     if cer_file_count > 0:
         avg_cer = (total_cer / cer_file_count) * 100
-        report.append(f"\n**Average CER (Ground Truth): {avg_cer:.2f}% ({cer_file_count}/{cer_total_files_with_gt} files; {len(cer_excluded_files)} excluded)**")
+        excluded_total = len(cer_excluded_files) + len(cer_silence_files)
+        report.append(f"\n**Average CER (Ground Truth): {avg_cer:.2f}% ({cer_file_count}/{cer_total_files_with_gt} files; {excluded_total} excluded)**")
 
     final_report = "\n".join(report)
     print(final_report)
