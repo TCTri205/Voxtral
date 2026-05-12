@@ -32,7 +32,7 @@ CHUNK_OVERLAP_SEC = 1.0
 VAD_PADDING_MS = 300  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 300ms = ~4 chars safety margin)
 
 # Silero VAD configuration (optimized for Japanese telephone audio)
-VAD_THRESHOLD = 0.65  # Speech probability threshold (0.0-1.0)
+VAD_THRESHOLD = 0.60  # Speech probability threshold (0.0-1.0)
 VAD_MIN_SPEECH_DURATION_MS = 400  # Minimum speech segment duration to be considered
 VAD_MIN_SILENCE_DURATION_MS = 100  # Minimum silence gap to split segments
 
@@ -42,7 +42,7 @@ VAD_CHUNK_PADDING_MS = 200     # Padding when cutting speech segment into chunks
 
 # Hallucination guardrails config (via environment variable)
 ENABLE_RETRY_HALLUCINATION = os.getenv("VOXTRAL_RETRY_HALLUCINATION", "false").lower() == "true"
-RETRY_TEMPERATURE = 0.5  # Temperature for retry attempts
+RETRY_TEMPERATURE = 0.5  # Temperature for retry attempts (used in Phase 2 recovery and guardrails)
 
 # Language Collapse Auto-Recovery config
 LANG_COLLAPSE_ASCII_RATIO = 0.7       # >70% ASCII alpha = collapsed (User requested 70%)
@@ -55,7 +55,7 @@ ENABLE_LANG_COLLAPSE_RECOVERY = True  # Feature flag
 # ---------------------------------------------------------------------------
 # Server revision fingerprint — printed at startup for Colab verification
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-12.1"  # bump this string on every push
+_SERVER_VERSION = "2026-05-12.2"  # bump this string on every push
 
 def _vad_config_metadata() -> dict:
     return {
@@ -801,8 +801,34 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                             lang_retries.append({"group": group, "anchor": anchor_idx, "status": "fixed"})
                             _slog(conn_id, f"[LangCollapse] Group {group} fixed via anchor chunk {anchor_idx+1}")
                         else:
-                            lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
-                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['ascii_ratio']}), keeping original")
+                            # If retry with anchor failed AND it's Chunk 0, try fallback trim
+                            if 0 in group:
+                                _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED, trying fallback for Chunk 0 (trim 500ms)")
+                                cutoff_samples = int(0.5 * 16000)
+                                group_audio = np.concatenate([chunks[i]['audio_np'] for i in group])
+                                
+                                if len(group_audio) > cutoff_samples + int(0.5 * 16000): # Ensure at least 0.5s remains
+                                    fallback_audio = group_audio[cutoff_samples:]
+                                    fallback_transcript, _ = _run_inference_for_chunk(fallback_audio, temp_retry_config, conn_id)
+                                    fallback_detection = _detect_language_collapse(fallback_transcript)
+                                    
+                                    if not fallback_detection["is_collapsed"]:
+                                        for j, idx in enumerate(group):
+                                            if j == 0:
+                                                transcripts[idx] = (fallback_transcript, transcripts[idx][1])
+                                            else:
+                                                transcripts[idx] = ("", transcripts[idx][1])
+                                        lang_retries.append({"group": group, "anchor": anchor_idx, "status": "fixed_fallback_trim"})
+                                        _slog(conn_id, f"[LangCollapse] Group {group} fixed via 500ms trim fallback")
+                                    else:
+                                        lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_fallback"})
+                                        _slog(conn_id, f"[LangCollapse] Group {group} fallback FAILED, keeping original")
+                                else:
+                                    lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_too_short"})
+                                    _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback")
+                            else:
+                                lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
+                                _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['ascii_ratio']}), keeping original")
             
             # Merge transcripts
             transcript = _merge_chunk_transcripts(transcripts, chunk_infos)
