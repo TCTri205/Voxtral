@@ -29,11 +29,11 @@ vad_utils = None
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
-VAD_PADDING_MS = 500  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 500ms = ~6 chars safety margin)
+VAD_PADDING_MS = 300  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 300ms = ~4 chars safety margin)
 
 # Silero VAD configuration (optimized for Japanese telephone audio)
-VAD_THRESHOLD = 0.5  # Speech probability threshold (0.0-1.0)
-VAD_MIN_SPEECH_DURATION_MS = 250  # Minimum speech segment duration to be considered
+VAD_THRESHOLD = 0.65  # Speech probability threshold (0.0-1.0)
+VAD_MIN_SPEECH_DURATION_MS = 400  # Minimum speech segment duration to be considered
 VAD_MIN_SILENCE_DURATION_MS = 100  # Minimum silence gap to split segments
 
 # Online VAD-Aware Chunking config
@@ -55,7 +55,7 @@ ENABLE_LANG_COLLAPSE_RECOVERY = True  # Feature flag
 # ---------------------------------------------------------------------------
 # Server revision fingerprint — printed at startup for Colab verification
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-07.3"  # bump this string on every push
+_SERVER_VERSION = "2026-05-12.1"  # bump this string on every push
 
 def _vad_config_metadata() -> dict:
     return {
@@ -742,6 +742,11 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 
                 if collapsed_indices:
                     groups = _group_consecutive(collapsed_indices)
+                    
+                    # Use temperature for all recovery attempts
+                    temp_retry_config = retry_config.copy()
+                    temp_retry_config["temperature"] = str(RETRY_TEMPERATURE)
+                    
                     for group in groups:
                         anchor_idx = _find_healthy_neighbor(group, len(chunks), collapsed_indices)
                         if anchor_idx is None:
@@ -771,7 +776,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                         
                         # Run retry inference
                         _slog(conn_id, f"[LangCollapse] Retrying group {group} with anchor {anchor_idx+1} ({len(retry_audio)/16000:.1f}s audio)")
-                        retry_transcript, retry_elapsed = _run_inference_for_chunk(retry_audio, retry_config, conn_id)
+                        retry_transcript, retry_elapsed = _run_inference_for_chunk(retry_audio, temp_retry_config, conn_id)
                         retry_detection = _detect_language_collapse(retry_transcript)
                         
                         if not retry_detection["is_collapsed"]:
