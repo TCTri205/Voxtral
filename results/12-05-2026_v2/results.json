@@ -1,0 +1,462 @@
+[
+    {
+        "file": "media_148280_1767762915627.mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。アセットジャパンです。お茶になっております。私、バルテスの中岡と申します。はい、お茶をとります。お茶になっております。本日、PMG部の石田様いらっしゃいますでしょうか。おじゃなでおります。本日、PMG部の石田様いらっしゃいますでしょうか。PMG部の石田…下のお名前は、ご存知ですか?はい、しほさなしほですね申し訳ないです断託になりますので単独になりますので、デュロコーゼロ17821880会社名がバーディーズベボの場でバーで次がラリル次が立ちつてでサシスのバールテスと言います申し訳ございませんよろしくお願いいたしますかけなおさせます出てします",
+        "duration": 80.08,
+        "connect_time": 1.362,
+        "stream_time": 0.0,
+        "wait_after_commit": 202.21,
+        "total_time": 203.57,
+        "total_rtf": 2.542,
+        "inference_rtf": 2.525,
+        "keepalive_count": 39,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "original_duration": 80.08,
+            "trimmed_duration": 78.292,
+            "speech_detected": true,
+            "first_speech_start_sec": 1.378,
+            "last_speech_end_sec": 79.07,
+            "num_segments": 27,
+            "vad_threshold": 0.65,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    1
+                ],
+                "anchor": 0,
+                "status": "fixed"
+            },
+            {
+                "group": [
+                    3
+                ],
+                "anchor": 2,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "60.60%"
+    },
+    {
+        "file": "media_148284_1767766514646 (1).mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。保険代理店ベネフィットでございます。お世話になります。AJテクノロジーズの辻と申します。はい、お世話になります。お世話になります。今なんですけれども、代表の小野田様いらっしゃいますでしょうか。ありがとうございました今って携帯とかにかけても問題ないですかお疲れ様でした。はい、お疲れ様でした。はい",
+        "duration": 40.4,
+        "connect_time": 1.001,
+        "stream_time": 0.0,
+        "wait_after_commit": 86.427,
+        "total_time": 87.43,
+        "total_rtf": 2.164,
+        "inference_rtf": 2.139,
+        "keepalive_count": 16,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "original_duration": 40.4,
+            "trimmed_duration": 37.076,
+            "speech_detected": true,
+            "first_speech_start_sec": 0.77,
+            "last_speech_end_sec": 37.246,
+            "num_segments": 12,
+            "vad_threshold": 0.65,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false
+        },
+        "lang_collapse_retries": [],
+        "rf": 0,
+        "cer": "49.23%"
+    },
+    {
+        "file": "media_148393_1767860211615 (1).mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。水建設のエスタと申します。いつもお世話になっています。AJテクノロジーズの山下です。はい、お世話になっております。お世話になります。すみません、河瀬さんと戻りなられていますか?ちょっと今外出しちゃっているんですけれども。頑張りましょう。ちょっと今外出しちゃってるんですけども頑張ります",
+        "duration": 25.64,
+        "connect_time": 1.112,
+        "stream_time": 0.0,
+        "wait_after_commit": 61.285,
+        "total_time": 62.4,
+        "total_rtf": 2.434,
+        "inference_rtf": 2.39,
+        "keepalive_count": 11,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "original_duration": 25.64,
+            "trimmed_duration": 22.164,
+            "speech_detected": true,
+            "first_speech_start_sec": 1.442,
+            "last_speech_end_sec": 23.006,
+            "num_segments": 7,
+            "vad_threshold": 0.65,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    1
+                ],
+                "anchor": 0,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "43.62%"
+    },
+    {
+        "file": "media_148394_1767860189485 (1).mp3",
+        "status": "success",
+        "transcript": "はいマルケンですいつもそうなってます AJテクノロジーズの山下ですお疲れ様ですお疲れ様ですすいません石原さんとお戻りになられてますか絶対ご意見でしょうかすいませんまたちょっと新しい企画をお持ちしたいなと思いましてどういった内容でしょうか。今いらっしゃらないですか。また携帯の方に改めさせていただきます。失礼します。",
+        "duration": 31.28,
+        "connect_time": 1.351,
+        "stream_time": 0.0,
+        "wait_after_commit": 71.381,
+        "total_time": 72.73,
+        "total_rtf": 2.325,
+        "inference_rtf": 2.282,
+        "keepalive_count": 13,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "original_duration": 31.28,
+            "trimmed_duration": 28.628,
+            "speech_detected": true,
+            "first_speech_start_sec": 0.93,
+            "last_speech_end_sec": 28.958,
+            "num_segments": 9,
+            "vad_threshold": 0.65,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false
+        },
+        "lang_collapse_retries": [],
+        "rf": 0,
+        "cer": "32.16%"
+    },
+    {
+        "status": "failed",
+        "error_type": "client_error",
+        "error_message": "no close frame received or sent",
+        "file": "media_148414_1767922241264 (1).mp3",
+        "rf": 0,
+        "cer": "N/A"
+    },
+    {
+        "file": "media_148439_1767926711644 (1).mp3",
+        "status": "success",
+        "transcript": "こんにちはワイナング株式会社の坂本です。生徒ジャパン熊谷でございます。おはようございます。おはようございます。すいません、先ほどの来週のお知らせの件なんですけども、14日の水曜日のはい10時からでお願いできますでしょうか分かりましたはいじゃあ14日水曜日の10時ですねにお伺いさせていただきますのではいよろしくお願いいたしますお願いしますはい失礼いたします失礼します",
+        "duration": 34.24,
+        "connect_time": 5.141,
+        "stream_time": 0.0,
+        "wait_after_commit": 216.867,
+        "total_time": 222.01,
+        "total_rtf": 6.484,
+        "inference_rtf": 6.334,
+        "keepalive_count": 42,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "original_duration": 34.24,
+            "trimmed_duration": 29.78,
+            "speech_detected": true,
+            "first_speech_start_sec": 2.37,
+            "last_speech_end_sec": 31.55,
+            "num_segments": 8,
+            "vad_threshold": 0.65,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false
+        },
+        "lang_collapse_retries": [],
+        "rf": 0,
+        "cer": "32.69%"
+    },
+    {
+        "file": "media_148954_1768789819598 (1).mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。アセプトジャパンです。お忙しいところ恐れ入ります。私、三菱UFK銀行の横堀と申します。はい、渡ります。お世話になっております。御社でアルバイトでお勤めと聞いております。中原凜香様にご案内したいことがございました。ごちそうさまで聞いております。中原凛香様にご案内したいことがございました。ご出勤でお取引等可能でしたらお願いしたいと思いました。お出ました次第なんですが。今は出勤協会を休みみたいですね。まだお休みで。出勤されてからで結構なんですけども、投稿の方にお電話いただきたいので、伝言をお願いすることはできるのでしょうか?はい、受けたまわります。ありがとうございます。では改めまして私、三菱UFK銀行の横堀と申します。横堀様、はい。中原さんの携帯電話の方にも何度かお電話しておりまして留守番電話に銀行名と電話番号などは吹き込みさせていただいているので番号自体はご存知でいらっしゃいますはい 承知しました受付の時間が平日土日祝日が朝9時から17時まで私以外のものでも案内できるようにしていますのでお電話いただきたいのでの電話をお願いしてもよろしいでしょうかはいかしこまりました申し訳りますお電話いただきたいもののでもお願いしてもよろしいでしょうかはいかしこまりました 申し伝えます",
+        "duration": 95.96,
+        "connect_time": 1.392,
+        "stream_time": 0.0,
+        "wait_after_commit": 420.32,
+        "total_time": 421.71,
+        "total_rtf": 4.395,
+        "inference_rtf": 4.38,
+        "keepalive_count": 82,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "original_duration": 95.96,
+            "trimmed_duration": 92.116,
+            "speech_detected": true,
+            "first_speech_start_sec": 1.602,
+            "last_speech_end_sec": 93.118,
+            "num_segments": 11,
+            "vad_threshold": 0.65,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    2,
+                    3
+                ],
+                "anchor": 1,
+                "status": "fixed"
+            },
+            {
+                "group": [
+                    7
+                ],
+                "anchor": 6,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "37.07%"
+    },
+    {
+        "file": "media_149291_1769069811005.mp3",
+        "status": "success",
+        "transcript": "はい、かせん標準かかってきますか?ちょっと確認させていただきますので、標準がもしかしたら難しいかもしれないんですけれども、数以降でも大丈夫そうですか?する以降でも大丈夫そうですか?明日が通院あたりとかで多分出れないかもしれなくてそちらに来て間違ってはないんですかこの物件というかもうそうしたところにアセットジャパンって書いてこの電話番号が書いてある売り物件っていうのがカマが貼ってあるんですけど小山手先というか間違ってないですかお祈りにでも電話くださいというのが書いてあるんですけどそれは間違いないですねわかりました分かりました大丈夫ですでも教授か明日以降一度ごちゃごちゃ折り返しって形で大丈夫ですかはい大丈夫ですかしこまりましたお電話番号まつり7153の携帯電話にかけさせていただきます名前をお伺いしてもよろしいですか?島田と言います熊田様ですか?島田です島田様はい失礼いたしましたありがとうございます要件としましてはチラシを見てくださったということですか?いいというわけとしましては、チラシを見てくださったということですか?いい、今受けの目の前にいるんですけど。そうなんですね。ちょっと前まで、多分不動産のいろんな情報のところに載ってたんですけど、それがもう見れなくなっとって、私なんかもう売れてしまったんか、とりあえず内見できるならさせてもらって、お花とかどういう、なんかいろんなお話も聞きたいなと思ってたんですけど。かしこまりました。内見ができるかどうかだったり、売れたかどうかだったり。はい、そうです。かしこまりまして、担当者のものに引き継ぎまして、もし教授かけれることができましたら、教授おかけしますし、ちょっと難しければ推移校になってしまうんですけれども。わかりました。大丈夫。ありがとうございます。はい、お願いします。けれども、ありがとうございます。お願いします。",
+        "duration": 156.64,
+        "connect_time": 1.384,
+        "stream_time": 0.0,
+        "wait_after_commit": 549.141,
+        "total_time": 550.53,
+        "total_rtf": 3.515,
+        "inference_rtf": 3.506,
+        "keepalive_count": 108,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "original_duration": 156.64,
+            "trimmed_duration": 155.156,
+            "speech_detected": true,
+            "first_speech_start_sec": 1.026,
+            "last_speech_end_sec": 155.582,
+            "num_segments": 38,
+            "vad_threshold": 0.65,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    0
+                ],
+                "anchor": 1,
+                "status": "failed"
+            },
+            {
+                "group": [
+                    2
+                ],
+                "anchor": 1,
+                "status": "fixed"
+            },
+            {
+                "group": [
+                    8,
+                    9
+                ],
+                "anchor": 7,
+                "status": "fixed"
+            },
+            {
+                "group": [
+                    11
+                ],
+                "anchor": 10,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "37.42%"
+    },
+    {
+        "status": "failed",
+        "error_type": "client_error",
+        "error_message": "did not receive a valid HTTP response",
+        "file": "media_149733_1769589919400.mp3",
+        "rf": 0,
+        "cer": "N/A"
+    },
+    {
+        "file": "silence_60s.wav",
+        "status": "success",
+        "transcript": "",
+        "duration": 60.0,
+        "connect_time": 1.773,
+        "stream_time": 0.0,
+        "wait_after_commit": 3.124,
+        "total_time": 4.9,
+        "total_rtf": 0.082,
+        "inference_rtf": 0.052,
+        "keepalive_count": 0,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "speech_detected": false,
+            "original_duration": 60.0,
+            "trimmed_duration": 60.0
+        },
+        "lang_collapse_retries": null,
+        "rf": 0,
+        "cer": "0.00%"
+    },
+    {
+        "file": "stochastic_noise_60s.wav",
+        "status": "success",
+        "transcript": "",
+        "duration": 60.0,
+        "connect_time": 1.762,
+        "stream_time": 0.0,
+        "wait_after_commit": 3.331,
+        "total_time": 5.09,
+        "total_rtf": 0.085,
+        "inference_rtf": 0.056,
+        "keepalive_count": 0,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "speech_detected": false,
+            "original_duration": 60.0,
+            "trimmed_duration": 60.0
+        },
+        "lang_collapse_retries": null,
+        "rf": 0,
+        "cer": "0.00%"
+    }
+]

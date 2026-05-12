@@ -1,0 +1,60 @@
+[
+    {
+        "file": "media_148414_1767922241264 (1).mp3",
+        "status": "success",
+        "transcript": "はい、じゃあ先生、名古屋市の株どうもんですけれどもおちいさしましては急ぎではございませんのでまたこちらから改めさせていただきますもう一度お名前が関してよろしいですかセットジャパンの伊藤でございますまた山内様宛にですね東浦町今度はですね東浦町の物件についてメールでお問い合わせいたしますとお伝えくださいかしこまりました伝えたいませはいありがとうございますいたしますとお伝えくださいかしこまりません伝えたい先生はいありがとうございます",
+        "duration": 53.36,
+        "connect_time": 1.297,
+        "stream_time": 0.0,
+        "wait_after_commit": 246.607,
+        "total_time": 247.91,
+        "total_rtf": 4.646,
+        "inference_rtf": 4.622,
+        "keepalive_count": 47,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.65,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 800,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_ASCII_RATIO": 0.7,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "_SERVER_VERSION": "2026-05-12.1"
+        },
+        "vad_result": {
+            "original_duration": 53.36,
+            "trimmed_duration": 51.956,
+            "speech_detected": true,
+            "first_speech_start_sec": 0.77,
+            "last_speech_end_sec": 52.126,
+            "num_segments": 9,
+            "vad_threshold": 0.65,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    0
+                ],
+                "anchor": 1,
+                "status": "fixed"
+            },
+            {
+                "group": [
+                    3
+                ],
+                "anchor": 2,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "60.20%"
+    }
+]

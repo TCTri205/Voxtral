@@ -1,88 +1,53 @@
-# Optimize VAD & Hallucination Recovery Plan
+# Kế hoạch Hoàn thiện VAD & Hallucination Recovery (v4)
 
-Kế hoạch này nhằm khắc phục triệt để tình trạng model (Voxtral/Mistral) bị ảo giác (hallucination) sinh ra tiếng Anh ở đầu file do VAD nhận diện nhầm tiếng ồn/tiếng thở thành giọng nói.
+Báo cáo này đối chiếu kết quả benchmark ngày 12/05 (`v2`, `v3`) và đưa ra kế hoạch hành động cuối cùng để tối ưu chất lượng ASR.
 
-## Đánh giá các thay đổi đề xuất
+## 1. Phân tích & Đối chiếu (Analysis & Comparison)
 
-Kế hoạch của bạn **rất hợp lý và mang tính thực tiễn cao**. Dưới đây là phân tích chi tiết cho từng điểm:
+Dựa trên dữ liệu thực tế từ các lần chạy gần nhất:
 
-1. **VAD_THRESHOLD (0.5 → 0.65)**: Hoàn toàn đồng ý. Silero VAD khá nhạy, việc tăng lên 0.65 sẽ giúp lọc bỏ các tiếng thở nhẹ và nhiễu nền ở đầu file.
-2. **VAD_MIN_SPEECH_DURATION_MS (250 → 400)**: Rất tốt. Nó sẽ bỏ qua các âm thanh tạp (như tạch lưỡi, tiếng sột soạt) dưới 400ms. Tuy có rủi ro nhỏ là bỏ sót các từ đệm cực ngắn (như "はい" nói nhanh), nhưng như bạn nói, trong bối cảnh cuộc gọi doanh nghiệp, độ ổn định quan trọng hơn nhiều so với một từ đệm.
-3. **VAD_PADDING_MS (500 → 300)**: Thay đổi này rất "đắt giá". Giảm padding xuống 300ms vẫn giữ an toàn cho đầu/cuối câu nhưng loại bỏ được 200ms "âm thanh rác" có thể làm mồi cho ảo giác.
-4. **Dùng `RETRY_TEMPERATURE = 0.5` cho lần Retry**: Rất chính xác. Nếu dùng Greedy Search (Temperature = 0) cho lần retry, model rất dễ đi vào "vết xe đổ" cũ bất chấp có thêm context. Tăng temperature lên 0.5 giúp model "thoát vòng lặp" và tính toán lại xác suất từ vựng mượt mà hơn.
-5. **Fallback cắt 500ms cho Chunk 0**: Đây là một bước bảo vệ an toàn (fail-safe) tuyệt vời. Vì fallback này *chỉ kích hoạt* khi chunk 0 bị lỗi tiếng Anh VÀ đã dùng Anchor thất bại, nên lúc này transcript ban đầu đằng nào cũng không xài được. Việc hy sinh 500ms đầu tiên để cứu toàn bộ nội dung tiếng Nhật phía sau là sự đánh đổi hoàn toàn xứng đáng.
+| Phiên bản | VAD (Thres/Pad) | Avg CER | Tình trạng Hallucination (media_148414) |
+| :--- | :--- | :--- | :--- |
+| **07/05 (v3)** | 0.5 / 500ms | 38.49% | Bị "Hi, Joseph" |
+| **12/05 (v3)** | 0.65 / 300ms | 46.78% | Vẫn bị "Hi, Joseph" |
+
+### Nhận xét:
+1. **VAD Tuning đơn thuần đã chạm ngưỡng**: Tăng Threshold lên 0.65 không những không diệt được ảo giác "Hi, Joseph" (do model sinh ra từ noise cực nhỏ) mà còn làm **CER tăng vọt** (từ 38% lên 46%) do mất dữ liệu âm thanh quan trọng.
+2. **Cần Logic Recovery mạnh hơn**: Kết quả `v3` ngày 12/05 cho thấy Recovery Phase 2 bị `failed` trên Chunk 0 vì thiếu cơ chế fallback đủ mạnh.
 
 ---
 
-## User Review Required
+## 2. Kế hoạch Hành động (Implementation Plan)
 
-> [!IMPORTANT]
-> Cần xác nhận chi tiết implement cho Fallback Chunk 0: Nếu nhóm chunk bị lỗi chứa Chunk 0 (vd: `group = [0]`), ta sẽ tạo ra một audio mới bằng cách lấy audio của nhóm đó và cắt bỏ 500ms đầu tiên (`cutoff_samples = int(0.5 * 16000)`). Sau đó chạy lại inference (không cần anchor nữa). Nếu kết quả tốt, nó sẽ thay thế transcript của chunk. Bạn có đồng ý với logic code này không?
+Chúng ta sẽ implement Phase 2 Recovery hoàn chỉnh theo các bước sau:
 
-## Proposed Changes
+### 2.1. Điều chỉnh lại tham số VAD (Rollback & Optimize)
+Để đưa CER trở lại mức ổn định (< 40%), chúng ta sẽ nới lỏng VAD một chút nhưng vẫn giữ chặt hơn mức 0.5 cũ.
+- `VAD_THRESHOLD`: **0.60**
+- `VAD_PADDING_MS`: **300ms**
+- `VAD_MIN_SPEECH_DURATION_MS`: **400ms**
 
-### `voxtral_server_transformers.py`
+### 2.2. Nâng cấp Cơ chế Recovery (Phase 2)
+Cập nhật `voxtral_server_transformers.py` với 2 cải tiến then chốt:
 
-#### 1. Cập nhật các hằng số VAD
-```python
-# Silero VAD configuration (optimized for Japanese telephone audio)
-VAD_THRESHOLD = 0.65  # Speech probability threshold (0.0-1.0)
-VAD_MIN_SPEECH_DURATION_MS = 400  # Minimum speech segment duration to be considered
-VAD_MIN_SILENCE_DURATION_MS = 100  # Minimum silence gap to split segments
+1. **Temperature Shift (0.5)**: 
+   - Khi phát hiện Language Collapse (ASCII ratio > 0.7), các lượt inference retry sẽ sử dụng `temperature: 0.5`.
+   - Mục tiêu: Giúp model thoát khỏi "vòng lặp" xác suất dẫn đến tiếng Anh/ảo giác.
 
-# Online VAD-Aware Chunking config
-VAD_SEGMENT_SILENCE_MS = 800   # Silence gap to split speech regions for chunking
-VAD_CHUNK_PADDING_MS = 200     # Padding when cutting speech segment into chunks
-VAD_PADDING_MS = 300  # Padding around speech segments to avoid cutting off audio
-```
+2. **Fallback Trim (500ms) cho Chunk 0**:
+   - Nếu Retry với Anchor vẫn thất bại (vẫn ra tiếng Anh), hệ thống sẽ thực hiện:
+     - Cắt bỏ 500ms đầu tiên của audio chunk đó.
+     - Inference lại audio đã cắt.
+   - Mục tiêu: Loại bỏ hoàn toàn các đoạn nhiễu/thở ở cực đầu file - tác nhân chính gây ảo giác.
 
-#### 2. Áp dụng Temperature 0.5 cho Phase 2 Retry
-Tại Phase 2 (Language Collapse Recovery), tạo một bản copy của `retry_config` và cập nhật temperature:
-```python
-temp_retry_config = retry_config.copy()
-temp_retry_config["temperature"] = str(RETRY_TEMPERATURE)
-```
-Thay thế `retry_config` bằng `temp_retry_config` trong hàm `_run_inference_for_chunk` khi thực hiện Retry nhóm (và cả Fallback).
+---
 
-#### 3. Implement Fallback cho Chunk 0
-Trong khối `else` khi retry với Anchor thất bại (`not retry_detection["is_collapsed"]` là False):
-```python
-if 0 in group:
-    _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED, trying fallback for Chunk 0 (trim 500ms)")
-    cutoff_samples = int(0.5 * 16000)
-    group_audio = np.concatenate([chunks[i]['audio_np'] for i in group])
-    
-    if len(group_audio) > cutoff_samples + int(0.5 * 16000): # Ensure at least 0.5s remains
-        fallback_audio = group_audio[cutoff_samples:]
-        fallback_transcript, _ = _run_inference_for_chunk(fallback_audio, temp_retry_config, conn_id)
-        fallback_detection = _detect_language_collapse(fallback_transcript)
-        
-        if not fallback_detection["is_collapsed"]:
-            for j, idx in enumerate(group):
-                if j == 0:
-                    transcripts[idx] = (fallback_transcript, transcripts[idx][1])
-                else:
-                    transcripts[idx] = ("", transcripts[idx][1])
-            lang_retries.append({"group": group, "anchor": anchor_idx, "status": "fixed_fallback_trim"})
-            _slog(conn_id, f"[LangCollapse] Group {group} fixed via 500ms trim fallback")
-        else:
-            lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_fallback"})
-            _slog(conn_id, f"[LangCollapse] Group {group} fallback FAILED, keeping original")
-    else:
-        lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
-        _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback")
-else:
-    lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
-    _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['ascii_ratio']}), keeping original")
-```
+## 3. Các bước Thực hiện (Execution Steps)
 
-## Verification Plan
+1. **Modify Server**: Cập nhật logic trong `voxtral_server_transformers.py`.
+2. **Unit Test**: Chạy test riêng file `media_148414`. Kỳ vọng: Transcript bắt đầu bằng tiếng Nhật, status `fixed_fallback_trim`.
+3. **Benchmark Verification**: Chạy lại toàn bộ 11 file. Kỳ vọng: CER < 40% và 0 file bị ảo giác tiếng Anh ở đầu.
 
-### Automated Tests
-- Chạy `python run_asr.py --audio "media_148414_1767922241264 (1).mp3"` và xác nhận ở đầu file không còn xuất hiện `Hi, Joseph...`. Transcript phải bắt đầu từ `はい、中央清算管理課...`.
-- Chạy Benchmark trên tập mẫu (5-10 file chất lượng bình thường) để kiểm tra độ tin cậy của VAD, xem các tinh chỉnh này có ảnh hưởng tiêu cực tới các file đã hoạt động tốt hay không.
-
-### Manual Verification
-- Kiểm tra file log JSON (`results.json`): xem metadata `vad_config` đã hiển thị đúng các giá trị 0.65, 400, 300 hay chưa.
-- Kiểm tra mốc `first_speech_start_sec` trong kết quả vad_result xem nó đã dịch chuyển khỏi khu vực 0.7s để tiến đến khu vực giọng nói thật (1-3s) hay chưa.
-- Kiểm tra list `lang_collapse_retries` để theo dõi các thao tác recovery và xem `fallback_trim` có được kích hoạt và hoạt động đúng không.
+---
+**Người lập kế hoạch:** Voxtral AI Assistant
+**Ngày:** 12/05/2026

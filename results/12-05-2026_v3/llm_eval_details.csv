@@ -1,0 +1,12 @@
+﻿filename,has_hallucination,primary_error,severity,confidence,review_status,existing_cer,existing_rf,existing_inference_rtf,reasoning,evidence_hyp_text,evidence_gt_context
+media_148280_1767762915627.mp3,False,none,none,low,manual_review,59.78%,0,2.652,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}} (High CER heuristic override),,
+media_148284_1767766514646 (1).mp3,False,none,none,low,manual_review,49.23%,0,2.272,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_148393_1767860211615 (1).mp3,False,none,none,low,manual_review,44.68%,0,2.395,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_148394_1767860189485 (1).mp3,False,none,none,low,manual_review,32.16%,0,2.438,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_148414_1767922241264 (1).mp3,False,none,none,low,manual_review,58.93%,0,3.498,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}} (High CER heuristic override),,
+media_148439_1767926711644 (1).mp3,False,none,none,low,manual_review,32.69%,0,2.378,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_148954_1768789819598 (1).mp3,False,none,none,low,manual_review,35.86%,0,2.841,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_149291_1769069811005.mp3,False,none,none,low,manual_review,38.68%,0,3.378,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_149733_1769589919400.mp3,False,none,none,low,manual_review,69.02%,0,1.36,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}} (High CER heuristic override),,
+silence_60s.wav,False,none,none,low,auto_accept,0.00%,0,0.048,Empty transcript matches explicit empty ground truth.,,
+stochastic_noise_60s.wav,False,none,none,low,auto_accept,0.00%,0,0.047,Empty transcript matches explicit empty ground truth.,,

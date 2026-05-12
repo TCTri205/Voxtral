@@ -1,0 +1,10 @@
+﻿filename,has_hallucination,primary_error,severity,confidence,review_status,existing_cer,existing_rf,existing_inference_rtf,reasoning,evidence_hyp_text,evidence_gt_context
+media_148280_1767762915627.mp3,False,none,none,low,manual_review,60.60%,0,2.525,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}} (High CER heuristic override),,
+media_148284_1767766514646 (1).mp3,False,none,none,low,manual_review,49.23%,0,2.139,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_148393_1767860211615 (1).mp3,False,none,none,low,manual_review,43.62%,0,2.39,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_148394_1767860189485 (1).mp3,False,none,none,low,manual_review,32.16%,0,2.282,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_148439_1767926711644 (1).mp3,False,none,none,low,manual_review,32.69%,0,6.334,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_148954_1768789819598 (1).mp3,False,none,none,low,manual_review,37.07%,0,4.38,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+media_149291_1769069811005.mp3,False,none,none,low,manual_review,37.42%,0,3.506,LLM call failed after 3 attempts: Error code: 403 - {'error': {'message': 'Access denied. Please check your network settings.'}},,
+silence_60s.wav,False,none,none,low,auto_accept,0.00%,0,0.052,Empty transcript matches explicit empty ground truth.,,
+stochastic_noise_60s.wav,False,none,none,low,auto_accept,0.00%,0,0.056,Empty transcript matches explicit empty ground truth.,,
