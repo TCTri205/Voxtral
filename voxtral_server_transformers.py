@@ -29,10 +29,10 @@ vad_utils = None
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
-VAD_PADDING_MS = 300  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 300ms = ~4 chars safety margin)
+VAD_PADDING_MS = 400  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 400ms = ~5 chars safety margin)
 
 # Silero VAD configuration (optimized for Japanese telephone audio)
-VAD_THRESHOLD = 0.60  # Speech probability threshold (0.0-1.0)
+VAD_THRESHOLD = 0.55  # Speech probability threshold (0.0-1.0)
 VAD_MIN_SPEECH_DURATION_MS = 400  # Minimum speech segment duration to be considered
 VAD_MIN_SILENCE_DURATION_MS = 100  # Minimum silence gap to split segments
 
@@ -55,7 +55,7 @@ ENABLE_LANG_COLLAPSE_RECOVERY = True  # Feature flag
 # ---------------------------------------------------------------------------
 # Server revision fingerprint — printed at startup for Colab verification
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-12.2"  # bump this string on every push
+_SERVER_VERSION = "2026-05-12.3"  # bump this string on every push
 
 def _vad_config_metadata() -> dict:
     return {
