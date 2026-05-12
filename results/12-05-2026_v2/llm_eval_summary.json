@@ -10,13 +10,16 @@
     "cer_excluded_files": 0,
     "empty_on_speech_count": 0,
     "deletion_count": 0,
-    "hallucination_rate": 0.0,
+    "hallucination_rate": 0.7778,
     "manual_review_rate": 0.7778,
     "error_distribution": {
-        "none": 9
+        "insertion": 7,
+        "none": 2
     },
     "severity_distribution": {
-        "none": 9
+        "high": 2,
+        "medium": 5,
+        "none": 2
     },
     "existing_metrics": {
         "avg_cer": "32.53%",

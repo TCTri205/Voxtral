@@ -1,5 +1,5 @@
 {
-    "run_dir": "results\\12-05-2026_v3",
+    "run_dir": "results\\12-05-2026_v4",
     "model_used": "llama-3.3-70b-versatile",
     "total_files": 11,
     "evaluated_files": 11,
@@ -17,13 +17,13 @@
         "none": 2
     },
     "severity_distribution": {
-        "high": 4,
-        "medium": 5,
+        "medium": 8,
+        "high": 1,
         "none": 2
     },
     "existing_metrics": {
-        "avg_cer": "38.28%",
-        "avg_inference_rtf": 2.119,
+        "avg_cer": "34.58%",
+        "avg_inference_rtf": 2.153,
         "hrs": 0.0
     }
 }
