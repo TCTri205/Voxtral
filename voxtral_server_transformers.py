@@ -41,7 +41,8 @@ VAD_SEGMENT_SILENCE_MS = 1000  # Balanced between v2 (800) and v4 (1200)
 VAD_CHUNK_PADDING_MS = 200     # Reverted to v2 padding to avoid capturing noise
 
 # Hallucination guardrails config
-ENABLE_RETRY_HALLUCINATION = True  # Enabled for V5 recovery
+# Disabled by default - retry causes 3x RTF overhead; enable via env var when needed
+ENABLE_RETRY_HALLUCINATION = os.getenv("VOXTRAL_RETRY_HALLUCINATION", "false").lower() == "true"
 RETRY_TEMPERATURE = 0.5
 
 # Language Collapse Auto-Recovery config
@@ -55,7 +56,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-14.1"
+_SERVER_VERSION = "2026-05-14.2"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -558,12 +559,11 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
         reasons.append(f"Language collapse pattern: '{detected_patterns[0]}'")
         severity = "high"
 
-    # Check 4: Noise-induced Japanese insertions (Common hallucinations in Voxtral)
-    japanese_noise_patterns = [
-        "こんにちは", "ありがとうございます", "よろしくお願いいたします", "お疲れ様です", "お茶を"
+    # Check 4: Noise-induced Japanese insertions (only flag if transcript IS exactly the pattern, very short audio)
+    japanese_noise_only_patterns = [
+        "お茶をどうぞ", "ただいま",
     ]
-    # If a short segment (<4s) only contains one of these, it's suspicious
-    if audio_duration < 4.0 and transcript_stripped in japanese_noise_patterns:
+    if audio_duration < 2.0 and transcript_stripped in japanese_noise_only_patterns:
         reasons.append(f"Noise insertion pattern: '{transcript_stripped}'")
         severity = "high"
 
