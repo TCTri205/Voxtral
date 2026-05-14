@@ -1,0 +1,20 @@
+{
+    "engine": "voxtral",
+    "timestamp_start": "20260514_165111",
+    "timestamp_end": "2026-05-14 16:51:17",
+    "runs_passed": 1,
+    "runs_aggregated": 1,
+    "averages": {
+        "total_rtf": 3.5949999999999993,
+        "inference_rtf": 3.5706363636363636,
+        "cer_percentage": 43.278888888888886
+    },
+    "details": [
+        {
+            "dir": "results\\14-05-2026_v9",
+            "avg_total_rtf": 3.5949999999999993,
+            "avg_inf_rtf": 3.5706363636363636,
+            "avg_cer": 0.4327888888888889
+        }
+    ]
+}
