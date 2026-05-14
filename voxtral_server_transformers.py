@@ -134,6 +134,17 @@ def _slog(conn_id: str, msg: str):
     print(f"[{ts}][{conn_id}] {msg}", flush=True)
 
 
+async def _safe_send_text(websocket: WebSocket, text: str, conn_id: str):
+    """Safely send text over websocket, catching disconnects."""
+    try:
+        await websocket.send_text(text)
+        return True
+    except (WebSocketDisconnect, RuntimeError) as e:
+        # RuntimeError: Cannot call "send" once a close message has been sent.
+        _slog(conn_id, f"send_failed (connection closed): {type(e).__name__}")
+        return False
+
+
 def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
     """
     Use Silero VAD to find speech segments and trim leading/trailing silence.
@@ -1000,13 +1011,17 @@ async def realtime_endpoint(websocket: WebSocket):
                             last_vad_pos = len(audio_buffer)
                     except Exception as e:
                         _slog(conn_id, f"load_error  path={file_path} error={e}")
-                        await websocket.send_text(
-                            json.dumps({"type": "error", "error": {"message": f"Failed to load file: {e}"}})
+                        await _safe_send_text(
+                            websocket,
+                            json.dumps({"type": "error", "error": {"message": f"Failed to load file: {e}"}}),
+                            conn_id
                         )
                 else:
                     _slog(conn_id, f"path_not_found  path={file_path}")
-                    await websocket.send_text(
-                        json.dumps({"type": "error", "error": {"message": f"File not found: {file_path}"}})
+                    await _safe_send_text(
+                        websocket,
+                        json.dumps({"type": "error", "error": {"message": f"File not found: {file_path}"}}),
+                        conn_id
                     )
 
             elif msg_type == "input_audio_buffer.commit":
@@ -1032,7 +1047,8 @@ async def realtime_endpoint(websocket: WebSocket):
 
                         if not speech_detected:
                             _slog(conn_id, "VAD: silence confirmed, skipping inference")
-                            await websocket.send_text(
+                            await _safe_send_text(
+                                websocket,
                                 json.dumps(
                                     {
                                         "type": "response.audio_transcript.done",
@@ -1044,7 +1060,8 @@ async def realtime_endpoint(websocket: WebSocket):
                                             "trimmed_duration": len(audio_buffer) / 32000.0,
                                         },
                                     }
-                                )
+                                ),
+                                conn_id
                             )
                         else:
                             _slog(conn_id, "VAD: speech present, starting inference")
@@ -1052,8 +1069,10 @@ async def realtime_endpoint(websocket: WebSocket):
                             delta_futures = []
                             def on_delta_callback(delta):
                                 fut = asyncio.run_coroutine_threadsafe(
-                                    websocket.send_text(
-                                        json.dumps({"type": "response.audio_transcript.delta", "delta": delta})
+                                    _safe_send_text(
+                                        websocket,
+                                        json.dumps({"type": "response.audio_transcript.delta", "delta": delta}),
+                                        conn_id
                                     ),
                                     loop
                                 )
@@ -1069,17 +1088,36 @@ async def realtime_endpoint(websocket: WebSocket):
                                 await asyncio.sleep(5)
                                 if not inference_task.done():
                                     keepalive_n += 1
-                                    await websocket.send_text(
-                                        json.dumps({"type": "session.keepalive"})
+                                    success = await _safe_send_text(
+                                        websocket,
+                                        json.dumps({"type": "session.keepalive"}),
+                                        conn_id
                                     )
+                                    if not success:
+                                        _slog(conn_id, "keepalive_failed: connection lost, cancelling inference")
+                                        inference_task.cancel()
+                                        break
                                     _slog(conn_id, f"keepalive_sent  n={keepalive_n}")
-                            inference_payload = inference_task.result()
+                            
+                            try:
+                                inference_payload = await inference_task
+                            except asyncio.CancelledError:
+                                _slog(conn_id, "inference_cancelled")
+                                # Cleanup delta futures if any
+                                for f in delta_futures: f.cancel()
+                                return # Socket is likely already closed
+
                             transcript = inference_payload.get("transcript", "")
                             
                             # Flush delta messages before sending done
                             if delta_futures:
-                                await asyncio.gather(*(asyncio.wrap_future(f) for f in delta_futures))
-                            await websocket.send_text(
+                                # Filter out cancelled futures
+                                active_futs = [asyncio.wrap_future(f) for f in delta_futures if not f.cancelled()]
+                                if active_futs:
+                                    await asyncio.gather(*active_futs, return_exceptions=True)
+                            
+                            await _safe_send_text(
+                                websocket,
                                 json.dumps(
                                     {
                                         "type": "response.audio_transcript.done",
@@ -1088,15 +1126,21 @@ async def realtime_endpoint(websocket: WebSocket):
                                         "vad_result": inference_payload.get("vad_result"),
                                         "lang_collapse_retries": inference_payload.get("lang_collapse_retries"),
                                     }
-                                )
+                                ),
+                                conn_id
                             )
                             _slog(conn_id, f"transcript_sent  len={len(transcript)}")
                     except Exception as e:
-                        _slog(conn_id, f"inference_error  {type(e).__name__}: {e}")
-                        import traceback; traceback.print_exc()
-                        await websocket.send_text(
-                            json.dumps({"type": "error", "error": {"message": str(e)}})
-                        )
+                        if isinstance(e, (WebSocketDisconnect, RuntimeError)):
+                            _slog(conn_id, f"inference_stopped_by_disconnect: {e}")
+                        else:
+                            _slog(conn_id, f"inference_error  {type(e).__name__}: {e}")
+                            import traceback; traceback.print_exc()
+                            await _safe_send_text(
+                                websocket,
+                                json.dumps({"type": "error", "error": {"message": str(e)}}),
+                                conn_id
+                            )
                     finally:
                         audio_buffer = bytearray()
                         accumulated_bytes = 0
@@ -1104,7 +1148,8 @@ async def realtime_endpoint(websocket: WebSocket):
                         last_vad_pos = 0
                 else:
                     _slog(conn_id, "commit_received  buffer_empty → sending empty transcript")
-                    await websocket.send_text(
+                    await _safe_send_text(
+                        websocket,
                         json.dumps(
                             {
                                 "type": "response.audio_transcript.done",
@@ -1116,7 +1161,8 @@ async def realtime_endpoint(websocket: WebSocket):
                                     "trimmed_duration": 0.0,
                                 },
                             }
-                        )
+                        ),
+                        conn_id
                     )
 
             else:
