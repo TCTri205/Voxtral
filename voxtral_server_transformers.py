@@ -50,6 +50,7 @@ LANG_COLLAPSE_MIN_CHARS = 5           # Min length to check
 LANG_COLLAPSE_CONTEXT_SEC = 5.0       # Seconds of context to prepend from anchor (User requested 5s)
 LANG_COLLAPSE_MAX_RETRY_CHUNKS = 3    # Max collapsed chunks to merge for retry
 ENABLE_LANG_COLLAPSE_RECOVERY = True  # Feature flag
+ENABLE_PREPROCESSING = True          # New: Audio preprocessing feature flag
 
 
 # ---------------------------------------------------------------------------
@@ -69,6 +70,7 @@ def _vad_config_metadata() -> dict:
         "CHUNK_OVERLAP_SEC": CHUNK_OVERLAP_SEC,
         "LANG_COLLAPSE_ASCII_RATIO": LANG_COLLAPSE_ASCII_RATIO,
         "LANG_COLLAPSE_RECOVERY": ENABLE_LANG_COLLAPSE_RECOVERY,
+        "PREPROCESSING_ENABLED": ENABLE_PREPROCESSING,
         "_SERVER_VERSION": _SERVER_VERSION,
     }
 
@@ -105,6 +107,31 @@ def _detect_language_collapse(transcript: str) -> dict:
         "ascii_ratio": round(ratio, 3),
         "reason": f"ascii_ratio={ratio:.1%}" if ratio > LANG_COLLAPSE_ASCII_RATIO else "ok",
     }
+
+
+def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 16000) -> np.ndarray:
+    """
+    Perform audio preprocessing to improve ASR quality.
+    - DC Offset Removal: Centers the signal at zero.
+    - Peak Normalization: Scales the signal to maximum amplitude.
+    """
+    if not ENABLE_PREPROCESSING:
+        return audio_np
+
+    t0 = time.time()
+    
+    # 1. DC Offset Removal
+    audio_np = audio_np - np.mean(audio_np)
+    
+    # 2. Peak Normalization
+    max_val = np.max(np.abs(audio_np))
+    if max_val > 1e-6: # Avoid division by zero
+        audio_np = audio_np / max_val
+        _slog(conn_id, f"Preprocessing: Peak normalized (original_max={max_val:.3f}) in {time.time()-t0:.3f}s")
+    else:
+        _slog(conn_id, f"Preprocessing: Audio is near silent, skipping normalization")
+        
+    return audio_np
 
 
 def _server_fingerprint() -> str:
@@ -655,6 +682,11 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     # Convert raw int16 PCM bytes -> float32 numpy array at 16kHz
     audio_np = np.frombuffer(audio_bytes, dtype=np.int16).astype(np.float32) / 32767.0
     original_duration = len(audio_np) / 16000.0
+
+    # =========================================================================
+    # PREPROCESSING
+    # =========================================================================
+    audio_np = _preprocess_audio(audio_np, conn_id, sample_rate=16000)
 
     # =========================================================================
     # PHA 1: VAD-BASED TRIMMING
