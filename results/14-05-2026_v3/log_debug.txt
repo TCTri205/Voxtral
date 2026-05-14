@@ -1,0 +1,5 @@
+New batch run: results\14-05-2026_v3
+Found 0 files to process.
+
+Generating evaluation report: results\14-05-2026_v3\report.md ...
+Report generated successfully.

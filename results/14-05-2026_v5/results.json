@@ -1,0 +1,10 @@
+[
+    {
+        "status": "failed",
+        "error_type": "client_error",
+        "error_message": "server rejected WebSocket connection: HTTP 404",
+        "file": "media_148280_1767762915627.mp3",
+        "rf": 0,
+        "cer": "N/A"
+    }
+]

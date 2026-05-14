@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from transformers import VoxtralRealtimeForConditionalGeneration, AutoProcessor, TextIteratorStreamer
+from transformers import VoxtralRealtimeForConditionalGeneration, AutoProcessor, TextIteratorStreamer, StoppingCriteria, StoppingCriteriaList
 from mistral_common.tokens.tokenizers.audio import Audio
 import argparse
 import librosa # Added for server-side file loading
@@ -31,32 +31,31 @@ CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
 VAD_PADDING_MS = 400  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 400ms = ~5 chars safety margin)
 
-# Silero VAD configuration (optimized for Japanese telephone audio)
-VAD_THRESHOLD = 0.55  # Speech probability threshold (0.0-1.0)
-VAD_MIN_SPEECH_DURATION_MS = 400  # Minimum speech segment duration to be considered
-VAD_MIN_SILENCE_DURATION_MS = 100  # Minimum silence gap to split segments
+# Silero VAD configuration (optimized for Japanese business conversations)
+VAD_THRESHOLD = 0.65  # Increased from 0.55 to eliminate noise-induced insertions
+VAD_MIN_SPEECH_DURATION_MS = 400
+VAD_MIN_SILENCE_DURATION_MS = 100
 
 # Online VAD-Aware Chunking config
-VAD_SEGMENT_SILENCE_MS = 1200  # Silence gap to split speech regions for chunking
-VAD_CHUNK_PADDING_MS = 400     # Padding when cutting speech segment into chunks
+VAD_SEGMENT_SILENCE_MS = 1000  # Balanced between v2 (800) and v4 (1200)
+VAD_CHUNK_PADDING_MS = 200     # Reverted to v2 padding to avoid capturing noise
 
-# Hallucination guardrails config (via environment variable)
-ENABLE_RETRY_HALLUCINATION = os.getenv("VOXTRAL_RETRY_HALLUCINATION", "false").lower() == "true"
-RETRY_TEMPERATURE = 0.5  # Temperature for retry attempts (used in Phase 2 recovery and guardrails)
+# Hallucination guardrails config
+ENABLE_RETRY_HALLUCINATION = True  # Enabled for V5 recovery
+RETRY_TEMPERATURE = 0.5
 
 # Language Collapse Auto-Recovery config
-LANG_COLLAPSE_ASCII_RATIO = 0.7       # >70% ASCII alpha = collapsed (User requested 70%)
-LANG_COLLAPSE_MIN_CHARS = 5           # Min length to check
-LANG_COLLAPSE_CONTEXT_SEC = 5.0       # Seconds of context to prepend from anchor (User requested 5s)
-LANG_COLLAPSE_MAX_RETRY_CHUNKS = 3    # Max collapsed chunks to merge for retry
-ENABLE_LANG_COLLAPSE_RECOVERY = True  # Feature flag
-ENABLE_PREPROCESSING = True          # New: Audio preprocessing feature flag
-
+LANG_COLLAPSE_ASCII_RATIO = 0.7
+LANG_COLLAPSE_MIN_CHARS = 5
+LANG_COLLAPSE_CONTEXT_SEC = 5.0
+LANG_COLLAPSE_MAX_RETRY_CHUNKS = 3
+ENABLE_LANG_COLLAPSE_RECOVERY = True
+ENABLE_PREPROCESSING = True
 
 # ---------------------------------------------------------------------------
-# Server revision fingerprint — printed at startup for Colab verification
+# Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-12.3"  # bump this string on every push
+_SERVER_VERSION = "2026-05-14.1"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -392,6 +391,35 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
     return chunks
 
 
+class RepetitionStoppingCriteria(StoppingCriteria):
+    """Stopping criteria that interrupts generation if it detects n-gram loops."""
+    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5)):
+        self.tokenizer = tokenizer
+        self.threshold = threshold
+        self.n_range = n_range
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        # Decode the last 50 tokens to check for loops
+        last_tokens = input_ids[0, -50:]
+        text = self.tokenizer.decode(last_tokens, skip_special_tokens=True)
+        # Remove whitespace
+        clean_text = "".join(text.split())
+        
+        if len(clean_text) < 15:
+            return False
+
+        for n in self.n_range:
+            # Check for repeating n-grams at the very end of the text
+            if len(clean_text) < n * self.threshold:
+                continue
+            
+            tail = clean_text[-(n * self.threshold):]
+            gram = tail[-n:]
+            if gram * self.threshold == tail:
+                return True
+        return False
+
+
 def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id: str, on_delta=None) -> tuple:
     """
     Run inference for a single chunk of audio.
@@ -426,8 +454,11 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     temperature = float(session_config.get("temperature", 0.0))
     do_sample = temperature > 0.0
 
-    # Setup streamer
+    # Setup streamer and stopping criteria
     streamer = TextIteratorStreamer(processor.tokenizer, skip_special_tokens=True, skip_prompt=True)
+    stopping_criteria = StoppingCriteriaList([
+        RepetitionStoppingCriteria(processor.tokenizer, threshold=3)
+    ])
 
     generation_kwargs = dict(
         **inputs,
@@ -435,6 +466,7 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
         do_sample=do_sample,
         temperature=temperature if do_sample else None,
         streamer=streamer,
+        stopping_criteria=stopping_criteria,
     )
 
     # Run generation in a separate thread because streamer.iterator is blocking
@@ -493,16 +525,7 @@ def _detect_ngram_loops(text: str, n_range=(2, 3, 4), threshold=3) -> list:
 def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn_id: str, log_prefix: str = "") -> dict:
     """
     Check for potential hallucination indicators.
-    LOG ONLY MODE: Does not reject output, just logs warnings for evaluation.
-
-    Args:
-        transcript: The transcribed text
-        audio_duration: Duration of the audio in seconds
-        conn_id: Connection ID for logging
-        log_prefix: Prefix for log messages (e.g., "[Primary]", "[Retry]")
-
-    Returns:
-        dict with 'is_suspicious', 'reasons', 'severity'
+    Updated for V5: More aggressive detection of short segments and common noise patterns.
     """
     reasons = []
     severity = "none"
@@ -512,47 +535,50 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
 
     _slog(conn_id, f"[Guardrail] {log_prefix}Checking: transcript_len={transcript_len}, audio_duration={audio_duration:.1f}s")
 
-    # Check 1: Short transcript for long audio (potential truncation or language collapse)
-    if audio_duration > 10 and transcript_len < 10:
+    # Check 1: Short transcript for long audio (potential truncation)
+    if audio_duration > 8 and transcript_len < 6:
         reasons.append(f"Short transcript ({transcript_len} chars) for long audio ({audio_duration:.1f}s)")
-        severity = "medium"
+        severity = "high"
 
     # Check 2: Very short transcript for medium audio
-    if 5 < audio_duration <= 10 and transcript_len < 5:
+    if 3 < audio_duration <= 8 and transcript_len < 3:
         reasons.append(f"Very short transcript ({transcript_len} chars) for medium audio ({audio_duration:.1f}s)")
-        severity = "low"
+        severity = "medium"
 
-    # Check 3: Detect potential language collapse (English words in Japanese audio context)
-    # Focus on FULL English sentences/phrases that are clear hallucinations
-    # Exclude loanwords/code names that may appear in Japanese business calls
+    # Check 3: Language collapse patterns
     english_hallucination_patterns = [
-        # Full sentence patterns (definite hallucinations)
         "now, how does", "so this call", "just to ask that", "how many times have you",
-        "i'm sorry", "good morning", "good afternoon",
-        # Conversational English (unlikely in Japanese business calls)
-        "hi there", "hello,", "thank you,", "you're welcome",
-        # Question patterns
-        "how does someone", "would you like to", "can i help you",
+        "i'm sorry", "good morning", "good afternoon", "hi there", "hello,", "thank you,", 
+        "you're welcome", "how does someone", "would you like to", "can i help you",
+        "bye bye", "see you", "all right", "okay then"
     ]
     transcript_lower = transcript_stripped.lower()
     detected_patterns = [p for p in english_hallucination_patterns if p in transcript_lower]
-    if len(detected_patterns) >= 1 and audio_duration > 5:
-        reasons.append(f"Language collapse: detected English hallucination '{detected_patterns[0]}'")
+    if detected_patterns and audio_duration > 3:
+        reasons.append(f"Language collapse pattern: '{detected_patterns[0]}'")
         severity = "high"
 
-    # Check 5: Detect repetitive/looping patterns (N-gram detection)
+    # Check 4: Noise-induced Japanese insertions (Common hallucinations in Voxtral)
+    japanese_noise_patterns = [
+        "こんにちは", "ありがとうございます", "よろしくお願いいたします", "お疲れ様です", "お茶を"
+    ]
+    # If a short segment (<4s) only contains one of these, it's suspicious
+    if audio_duration < 4.0 and transcript_stripped in japanese_noise_patterns:
+        reasons.append(f"Noise insertion pattern: '{transcript_stripped}'")
+        severity = "high"
+
+    # Check 5: Looping patterns
     loops = _detect_ngram_loops(transcript_stripped)
     if loops:
         reasons.append(f"Looping detected: {', '.join(loops)}")
         severity = "high"
 
-    # Check 6: Empty transcript for non-silent audio (VAD may have failed)
+    # Check 6: Empty transcript for non-silent audio
     if transcript_len == 0 and audio_duration > 2:
         reasons.append("Empty transcript for non-silent audio")
         severity = "medium"
 
     is_suspicious = len(reasons) > 0
-
     if is_suspicious:
         _slog(conn_id, f"[Guardrail] {log_prefix}WARNING - {'; '.join(reasons)} [severity={severity}]")
     else:

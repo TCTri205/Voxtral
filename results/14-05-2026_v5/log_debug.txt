@@ -1,0 +1,11 @@
+New batch run: results\14-05-2026_v5
+Found 1 files to process.
+[1/1] media_148280_1767762915627.mp3 ... 
+[Client Error] media_148280_1767762915627.mp3: server rejected WebSocket connection: HTTP 404
+Failed (client_error: server rejected WebSocket connection: HTTP 404)
+
+Generating evaluation report: results\14-05-2026_v5\report.md ...
+Report generated successfully.
+
+Running LLM Evaluation ...
+LLM Evaluation completed successfully.
