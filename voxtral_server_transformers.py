@@ -14,6 +14,7 @@ from mistral_common.tokens.tokenizers.audio import Audio
 import argparse
 import librosa # Added for server-side file loading
 import threading
+from scipy import signal
 
 app = FastAPI()
 
@@ -29,21 +30,21 @@ vad_utils = None
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
-VAD_PADDING_MS = 400  # Padding around speech segments to avoid cutting off audio (Japanese: ~12 chars/sec, 400ms = ~5 chars safety margin)
+VAD_PADDING_MS = 300  # Tightened from 400ms to reduce trailing silence hallucinations
 
 # Silero VAD configuration (optimized for Japanese business conversations)
-VAD_THRESHOLD = 0.65  # Increased from 0.55 to eliminate noise-induced insertions
+VAD_THRESHOLD = 0.70  # Increased from 0.65 to be more selective in noisy telephony audio
 VAD_MIN_SPEECH_DURATION_MS = 400
 VAD_MIN_SILENCE_DURATION_MS = 100
 
 # Online VAD-Aware Chunking config
-VAD_SEGMENT_SILENCE_MS = 1000  # Balanced between v2 (800) and v4 (1200)
+VAD_SEGMENT_SILENCE_MS = 700  # Tightened from 1000 to break chunks earlier
 VAD_CHUNK_PADDING_MS = 200     # Reverted to v2 padding to avoid capturing noise
 
 # Hallucination guardrails config
-# Disabled by default - retry causes 3x RTF overhead; enable via env var when needed
-ENABLE_RETRY_HALLUCINATION = os.getenv("VOXTRAL_RETRY_HALLUCINATION", "false").lower() == "true"
-RETRY_TEMPERATURE = 0.5
+# Enabled for v7 to tackle tail-end repetitions
+ENABLE_RETRY_HALLUCINATION = True
+RETRY_TEMPERATURE = 0.2
 
 # Language Collapse Auto-Recovery config
 LANG_COLLAPSE_ASCII_RATIO = 0.7
@@ -56,7 +57,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-14.3"
+_SERVER_VERSION = "2026-05-14.4"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -125,10 +126,17 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. RMS Calculation
+    # 2. High-Pass Filter (80Hz) to remove low-frequency rumble
+    try:
+        sos = signal.butter(4, 80, 'hp', fs=sample_rate, output='sos')
+        audio_np = signal.sosfilt(sos, audio_np)
+    except Exception as e:
+        _slog(conn_id, f"Preprocessing: HPF failed: {e}")
+
+    # 3. RMS Calculation
     rms = np.sqrt(np.mean(audio_np**2))
     
-    # 3. Soft Noise Gate (-50dBFS threshold)
+    # 4. Soft Noise Gate (-50dBFS threshold)
     noise_gate_threshold = 10**(-50/20) # ~0.00316
     if rms < noise_gate_threshold:
         # Near silent: attenuate further to help VAD ignore it
@@ -136,18 +144,18 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
         _slog(conn_id, f"Preprocessing: Noise gate active (RMS={20*np.log10(rms+1e-9):.1f}dBFS)")
         return audio_np
 
-    # 4. RMS Normalization (Target -20dBFS = 0.1)
+    # 5. RMS Normalization (Target -20dBFS = 0.1)
     target_rms = 10**(-20/20) # 0.1
     gain = target_rms / (rms + 1e-9)
     
-    # 5. Gain Clamping (Max 10x / 20dB)
+    # 6. Gain Clamping (Max 10x / 20dB)
     clamped_gain = min(gain, 10.0)
     audio_np = audio_np * clamped_gain
     
     # Final safety clip
     audio_np = np.clip(audio_np, -1.0, 1.0)
     
-    _slog(conn_id, f"Preprocessing: RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
+    _slog(conn_id, f"Preprocessing: HPF(80Hz) + RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np
 
@@ -406,17 +414,21 @@ class RepetitionStoppingCriteria(StoppingCriteria):
         # Remove whitespace
         clean_text = "".join(text.split())
         
-        if len(clean_text) < 15:
+        if len(clean_text) < 10:
             return False
 
+        # Stricter detection for longer n-grams
         for n in self.n_range:
             # Check for repeating n-grams at the very end of the text
-            if len(clean_text) < n * self.threshold:
+            # Threshold 2 for n >= 4 to catch phrases earlier
+            current_threshold = 2 if n >= 4 else self.threshold
+            
+            if len(clean_text) < n * current_threshold:
                 continue
             
-            tail = clean_text[-(n * self.threshold):]
+            tail = clean_text[-(n * current_threshold):]
             gram = tail[-n:]
-            if gram * self.threshold == tail:
+            if gram * current_threshold == tail:
                 return True
         return False
 
@@ -652,6 +664,31 @@ def _find_healthy_neighbor(group: list[int], total_chunks: int,
     return None
 
 
+def _truncate_repetitions(text: str, n_range=(3, 4, 5, 6, 7, 8), threshold=2) -> str:
+    """
+    Detect and truncate tail-end repetitions (hallucinations).
+    Example: "A B C B C B C" -> "A B C"
+    """
+    if not text:
+        return text
+    
+    clean_text = text.strip()
+    # Character-based check for Japanese
+    for n in n_range:
+        for t in range(threshold + 1, 1, -1): # Try higher thresholds first
+            if len(clean_text) < n * t:
+                continue
+            
+            tail = clean_text[-(n * t):]
+            gram = tail[-n:]
+            if gram * t == tail:
+                # Found a loop! Truncate all but one instance of the gram
+                # But only if it's at the very end
+                return clean_text[:-(n * (t-1))]
+    
+    return clean_text
+
+
 def _merge_chunk_transcripts(transcripts: list, chunk_infos: list | None = None, overlap_sec: float = CHUNK_OVERLAP_SEC) -> str:
     """
     Merge transcripts from chunks, trimming exact text duplicated by overlapping sub-chunks.
@@ -670,9 +707,9 @@ def _merge_chunk_transcripts(transcripts: list, chunk_infos: list | None = None,
     if len(transcripts) == 1:
         return transcripts[0][0]
     
-    merged = transcripts[0][0]
+    merged = _truncate_repetitions(transcripts[0][0])
     for i in range(1, len(transcripts)):
-        chunk_text = transcripts[i][0]
+        chunk_text = _truncate_repetitions(transcripts[i][0])
         if chunk_text:
             prev_info = chunk_infos[i - 1] if chunk_infos and i - 1 < len(chunk_infos) else None
             current_info = chunk_infos[i] if chunk_infos and i < len(chunk_infos) else None
@@ -959,7 +996,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     
     # Multi-temperature retry (if suspicious)
     if guardrail_result["is_suspicious"] and severity_order[best_severity] >= severity_order["medium"] and ENABLE_RETRY_HALLUCINATION:
-        retry_temps = [0.3, 0.5]
+        retry_temps = [0.2, 0.5]
         for r_temp in retry_temps:
             _slog(conn_id, f"[Guardrail] Severity {best_severity} detected. Attempting retry with temperature={r_temp}...")
             retry_transcript, _ = run_inference_with_config(trimmed_audio, temp_override=r_temp)
