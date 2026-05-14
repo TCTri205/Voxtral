@@ -231,7 +231,7 @@ async def transcription_client(
 
                 if data["type"] == "session.keepalive":
                     keepalive_count += 1
-                    if keepalive_count > 85:
+                    if keepalive_count > 250:
                         log(f"\n[Warning] {os.path.basename(audio_path)}: High keepalive count ({keepalive_count}). Server might be struggling.", log_file)
                     if debug:
                         log(f"[DBG {_ts()}] keepalive #{keepalive_count}", log_file)
