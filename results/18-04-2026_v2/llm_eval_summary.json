@@ -1,27 +1,30 @@
 {
     "run_dir": "results\\18-04-2026_v2",
     "model_used": "llama-3.3-70b-versatile",
-    "total_files": 9,
-    "evaluated_files": 9,
+    "total_files": 11,
+    "evaluated_files": 11,
     "with_gt_timestamped": 9,
-    "without_gt_timestamped": 0,
-    "hallucination_rate": 0.8889,
-    "manual_review_rate": 1.0,
+    "without_gt_timestamped": 2,
+    "cer_file_count": 11,
+    "cer_total_files": 11,
+    "cer_excluded_files": 0,
+    "empty_on_speech_count": 0,
+    "deletion_count": 0,
+    "hallucination_rate": 0.7273,
+    "manual_review_rate": 0.8182,
     "error_distribution": {
-        "insertion": 6,
+        "insertion": 7,
         "silence_text": 1,
-        "none": 1,
-        "content_replacement": 1
+        "none": 3
     },
     "severity_distribution": {
-        "medium": 4,
-        "low": 1,
+        "medium": 5,
         "high": 3,
-        "none": 1
+        "none": 3
     },
     "existing_metrics": {
-        "avg_cer": "55.03%",
-        "avg_inference_rtf": 1.741,
+        "avg_cer": "45.03%",
+        "avg_inference_rtf": 1.713,
         "hrs": 0.0
     }
 }

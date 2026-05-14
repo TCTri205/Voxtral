@@ -157,7 +157,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     
     _slog(conn_id, f"Preprocessing: HPF(80Hz) + RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
         
-    return audio_np
+    return audio_np.astype(np.float32)
 
 
 def _server_fingerprint() -> str:
@@ -216,7 +216,7 @@ def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
 
     try:
         original_duration = len(audio_np) / sample_rate
-        audio_tensor = torch.from_numpy(audio_np)
+        audio_tensor = torch.from_numpy(audio_np).to(torch.float32)
         get_speech_timestamps = vad_utils[0]
 
         # Get speech timestamps with configured thresholds
@@ -833,7 +833,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             
         # Run VAD on the audio to get exact speech timestamps and chunk it
         sample_rate = 16000
-        audio_tensor = torch.from_numpy(audio_to_process)
+        audio_tensor = torch.from_numpy(audio_to_process).to(torch.float32)
         get_speech_timestamps = vad_utils[0]
         
         speech_timestamps = get_speech_timestamps(
@@ -1105,7 +1105,7 @@ async def realtime_endpoint(websocket: WebSocket):
                             if not speech_detected:
                                 check_bytes = audio_buffer[last_vad_pos:]
                                 audio_np = np.frombuffer(check_bytes, dtype=np.int16).astype(np.float32) / 32767.0
-                                audio_tensor = torch.from_numpy(audio_np)
+                                audio_tensor = torch.from_numpy(audio_np).to(torch.float32)
                                 get_speech_timestamps = vad_utils[0]
                                 speech_timestamps = get_speech_timestamps(
                                     audio_tensor, 
@@ -1140,7 +1140,7 @@ async def realtime_endpoint(websocket: WebSocket):
                         # Trigger speech detection check for the loaded file
                         if not speech_detected:
                             audio_np_vad = np.frombuffer(chunk_bytes, dtype=np.int16).astype(np.float32) / 32767.0
-                            audio_tensor = torch.from_numpy(audio_np_vad)
+                            audio_tensor = torch.from_numpy(audio_np_vad).to(torch.float32)
                             get_speech_timestamps = vad_utils[0]
                             speech_timestamps = get_speech_timestamps(
                                 audio_tensor, 
@@ -1178,7 +1178,7 @@ async def realtime_endpoint(websocket: WebSocket):
                         if not speech_detected:
                             _slog(conn_id, "VAD: no speech detected in increments, running final check on full buffer")
                             audio_np = np.frombuffer(audio_buffer, dtype=np.int16).astype(np.float32) / 32767.0
-                            audio_tensor = torch.from_numpy(audio_np)
+                            audio_tensor = torch.from_numpy(audio_np).to(torch.float32)
                             get_speech_timestamps = vad_utils[0]
                             speech_timestamps = get_speech_timestamps(
                                 audio_tensor, 
