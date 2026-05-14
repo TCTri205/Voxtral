@@ -56,7 +56,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-14.2"
+_SERVER_VERSION = "2026-05-14.3"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -504,22 +504,37 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     return transcript, elapsed
 
 
-def _detect_ngram_loops(text: str, n_range=(2, 3, 4), threshold=3) -> list:
+def _detect_ngram_loops(text: str, n_range=(3, 4, 5), threshold=4) -> list:
     """
     Detect if any n-gram (character-level for Japanese) repeats more than threshold times.
+    Excludes common Japanese grammatical suffixes that are legitimately high-frequency.
     """
+    # Common Japanese grammatical endings that appear frequently in normal business speech
+    # These are NOT hallucinations even if they repeat many times.
+    JAPANESE_COMMON_GRAMS = {
+        # 2-char
+        "ます", "です", "した", "して", "ない", "ので", "いる", "ある", "から", "けど",
+        "には", "ては", "では", "とは", "から", "より", "まで", "でも",
+        # 3-char
+        "ります", "います", "えます", "きます", "します", "ません", "でした", "ました",
+        "ください", "しては", "におい", "について", "ありがと",
+        # 4-char
+        "ありがとう", "おります", "いします", "いただき", "お願いし",
+    }
+
     loops = []
-    # For Japanese, we use character-level n-grams. Remove spaces and common punctuation for better detection.
     clean_text = "".join([c for c in text if c.isalnum()])
-    
+
     for n in n_range:
         ngrams = {}
         for i in range(len(clean_text) - n + 1):
             gram = clean_text[i:i+n]
+            if gram in JAPANESE_COMMON_GRAMS:
+                continue  # Skip legitimate Japanese grammatical patterns
             ngrams[gram] = ngrams.get(gram, 0) + 1
             if ngrams[gram] > threshold:
                 loops.append(f"'{gram}' repeated {ngrams[gram]}x")
-                break # Found a loop for this N, move to next N
+                break  # Found a loop for this N, move to next N
     return loops
 
 
