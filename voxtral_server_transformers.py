@@ -37,8 +37,8 @@ VAD_MIN_SPEECH_DURATION_MS = 400  # Minimum speech segment duration to be consid
 VAD_MIN_SILENCE_DURATION_MS = 100  # Minimum silence gap to split segments
 
 # Online VAD-Aware Chunking config
-VAD_SEGMENT_SILENCE_MS = 800   # Silence gap to split speech regions for chunking
-VAD_CHUNK_PADDING_MS = 200     # Padding when cutting speech segment into chunks
+VAD_SEGMENT_SILENCE_MS = 1200  # Silence gap to split speech regions for chunking
+VAD_CHUNK_PADDING_MS = 400     # Padding when cutting speech segment into chunks
 
 # Hallucination guardrails config (via environment variable)
 ENABLE_RETRY_HALLUCINATION = os.getenv("VOXTRAL_RETRY_HALLUCINATION", "false").lower() == "true"
@@ -113,7 +113,9 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     """
     Perform audio preprocessing to improve ASR quality.
     - DC Offset Removal: Centers the signal at zero.
-    - Peak Normalization: Scales the signal to maximum amplitude.
+    - RMS Normalization: Scales the signal to target RMS level (-20dBFS).
+    - Gain Clamping: Limits maximum gain to avoid over-amplifying noise.
+    - Soft Noise Gate: Attenuates near-silent segments.
     """
     if not ENABLE_PREPROCESSING:
         return audio_np
@@ -123,13 +125,29 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. Peak Normalization
-    max_val = np.max(np.abs(audio_np))
-    if max_val > 1e-6: # Avoid division by zero
-        audio_np = audio_np / max_val
-        _slog(conn_id, f"Preprocessing: Peak normalized (original_max={max_val:.3f}) in {time.time()-t0:.3f}s")
-    else:
-        _slog(conn_id, f"Preprocessing: Audio is near silent, skipping normalization")
+    # 2. RMS Calculation
+    rms = np.sqrt(np.mean(audio_np**2))
+    
+    # 3. Soft Noise Gate (-50dBFS threshold)
+    noise_gate_threshold = 10**(-50/20) # ~0.00316
+    if rms < noise_gate_threshold:
+        # Near silent: attenuate further to help VAD ignore it
+        audio_np = audio_np * 0.1
+        _slog(conn_id, f"Preprocessing: Noise gate active (RMS={20*np.log10(rms+1e-9):.1f}dBFS)")
+        return audio_np
+
+    # 4. RMS Normalization (Target -20dBFS = 0.1)
+    target_rms = 10**(-20/20) # 0.1
+    gain = target_rms / (rms + 1e-9)
+    
+    # 5. Gain Clamping (Max 10x / 20dB)
+    clamped_gain = min(gain, 10.0)
+    audio_np = audio_np * clamped_gain
+    
+    # Final safety clip
+    audio_np = np.clip(audio_np, -1.0, 1.0)
+    
+    _slog(conn_id, f"Preprocessing: RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np
 
@@ -453,6 +471,25 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     return transcript, elapsed
 
 
+def _detect_ngram_loops(text: str, n_range=(2, 3, 4), threshold=3) -> list:
+    """
+    Detect if any n-gram (character-level for Japanese) repeats more than threshold times.
+    """
+    loops = []
+    # For Japanese, we use character-level n-grams. Remove spaces and common punctuation for better detection.
+    clean_text = "".join([c for c in text if c.isalnum()])
+    
+    for n in n_range:
+        ngrams = {}
+        for i in range(len(clean_text) - n + 1):
+            gram = clean_text[i:i+n]
+            ngrams[gram] = ngrams.get(gram, 0) + 1
+            if ngrams[gram] > threshold:
+                loops.append(f"'{gram}' repeated {ngrams[gram]}x")
+                break # Found a loop for this N, move to next N
+    return loops
+
+
 def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn_id: str, log_prefix: str = "") -> dict:
     """
     Check for potential hallucination indicators.
@@ -503,20 +540,13 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
         reasons.append(f"Language collapse: detected English hallucination '{detected_patterns[0]}'")
         severity = "high"
 
-    # Check 4: Detect repetitive/looping patterns (character-level repetition)
-    if transcript_len > 50:
-        # Check for repeated character sequences (e.g., "はい、ありがとうございます。はい、ありがとうございます。")
-        # Split by common Japanese punctuation
-        segments = transcript_stripped.replace("。", "\n").replace("、", "\n").split("\n")
-        if len(segments) > 3:
-            # Check if segments are highly repetitive
-            unique_segments = set(segments)
-            repetition_ratio = len(unique_segments) / len(segments)
-            if repetition_ratio < 0.3:  # Less than 30% unique segments
-                reasons.append(f"Looping: only {len(unique_segments)} unique segments out of {len(segments)}")
-                severity = "high"
+    # Check 5: Detect repetitive/looping patterns (N-gram detection)
+    loops = _detect_ngram_loops(transcript_stripped)
+    if loops:
+        reasons.append(f"Looping detected: {', '.join(loops)}")
+        severity = "high"
 
-    # Check 5: Empty transcript for non-silent audio (VAD may have failed)
+    # Check 6: Empty transcript for non-silent audio (VAD may have failed)
     if transcript_len == 0 and audio_duration > 2:
         reasons.append("Empty transcript for non-silent audio")
         severity = "medium"
@@ -746,167 +776,172 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
         )
         
         if not chunks:
-            _slog(conn_id, "VAD: No speech found in run_inference_with_config")
-            return "", 0.0, []
+            # Fallback: Treat as one single chunk if VAD missed it but we reached here
+            chunks = [{
+                "audio_np": audio_to_process,
+                "start_sec": 0.0,
+                "end_sec": len(audio_to_process) / sample_rate,
+                "segments_count": 0,
+                "is_sub_chunk": False,
+            }]
             
-        if len(chunks) == 1:
-            # Single chunk - process normally
-            _slog(conn_id, f"Processing single VAD chunk ({chunks[0]['start_sec']:.2f}s - {chunks[0]['end_sec']:.2f}s, {chunks[0]['segments_count']} segments)")
-            res_text, res_time = _run_inference_for_chunk(chunks[0]['audio_np'], retry_config, conn_id, on_delta)
-            return res_text, res_time, []
-        else:
-            # Process each chunk
-            _slog(conn_id, f"VAD Chunking: Audio split into {len(chunks)} speech-only chunks")
-            transcripts = []
-            chunk_infos = []
+        _slog(conn_id, f"Inference: Processing {len(chunks)} chunks...")
+        transcripts = []
+        chunk_infos = []
+        
+        for i, chunk_info in enumerate(chunks):
+            # Use on_delta only for the first chunk to maintain client UI consistency
+            current_on_delta = on_delta if (i == 0 and len(chunks) == 1) else None
             
-            for i, chunk_info in enumerate(chunks):
-                _slog(conn_id, f"Processing chunk {i+1}/{len(chunks)} ({chunk_info['start_sec']:.1f}s-{chunk_info['end_sec']:.1f}s, {chunk_info['segments_count']} segs)")
-                
-                # Only pass on_delta to the first chunk to avoid confusing the client 
-                # (since deltas would be sent out of order relative to original audio if there are long gaps)
-                # For now, we disable on_delta for chunked processing to keep it simple
-                chunk_transcript, chunk_elapsed = _run_inference_for_chunk(chunk_info['audio_np'], retry_config, conn_id, None)
-                
-                _slog(conn_id, f"Chunk {i+1} done in {chunk_elapsed:.2f}s, transcript_len={len(chunk_transcript)}")
-                duration = chunk_info['end_sec'] - chunk_info['start_sec']
-                transcripts.append((chunk_transcript, duration))
-                chunk_infos.append(chunk_info)
+            chunk_transcript, chunk_elapsed = _run_inference_for_chunk(chunk_info['audio_np'], retry_config, conn_id, current_on_delta)
             
-            # ===== Phase 2: Language Collapse Recovery =====
-            lang_retries = []
-            if ENABLE_LANG_COLLAPSE_RECOVERY:
-                collapsed_indices = []
-                for i, (text, dur) in enumerate(transcripts):
-                    detection = _detect_language_collapse(text)
-                    if detection["is_collapsed"]:
-                        collapsed_indices.append(i)
-                        _slog(conn_id, f"[LangCollapse] Chunk {i+1} ({dur:.1f}s): {detection['reason']}")
+            duration = chunk_info['end_sec'] - chunk_info['start_sec']
+            transcripts.append((chunk_transcript, duration))
+            chunk_infos.append(chunk_info)
+        
+        # ===== Phase 2: Language Collapse Recovery =====
+        lang_retries = []
+        if ENABLE_LANG_COLLAPSE_RECOVERY:
+            collapsed_indices = []
+            for i, (text, dur) in enumerate(transcripts):
+                detection = _detect_language_collapse(text)
+                if detection["is_collapsed"]:
+                    collapsed_indices.append(i)
+                    _slog(conn_id, f"[LangCollapse] Chunk {i+1} ({dur:.1f}s): {detection['reason']}")
+            
+            if collapsed_indices:
+                groups = _group_consecutive(collapsed_indices)
                 
-                if collapsed_indices:
-                    groups = _group_consecutive(collapsed_indices)
+                # Use temperature for all recovery attempts
+                temp_retry_config = retry_config.copy()
+                temp_retry_config["temperature"] = str(RETRY_TEMPERATURE)
+                
+                for group in groups:
+                    anchor_idx = _find_healthy_neighbor(group, len(chunks), collapsed_indices)
+                    if anchor_idx is None:
+                        _slog(conn_id, f"[LangCollapse] No healthy anchor for group {group}, skipping retry")
+                        lang_retries.append({"group": group, "status": "no_anchor"})
+                        continue
                     
-                    # Use temperature for all recovery attempts
-                    temp_retry_config = retry_config.copy()
-                    temp_retry_config["temperature"] = str(RETRY_TEMPERATURE)
+                    # Build retry audio: context prefix (5s) + collapsed chunk(s)
+                    context_samples = int(LANG_COLLAPSE_CONTEXT_SEC * 16000)
+                    anchor_audio = chunks[anchor_idx]['audio_np']
                     
-                    for group in groups:
-                        anchor_idx = _find_healthy_neighbor(group, len(chunks), collapsed_indices)
-                        if anchor_idx is None:
-                            _slog(conn_id, f"[LangCollapse] No healthy anchor for group {group}, skipping retry")
-                            lang_retries.append({"group": group, "status": "no_anchor"})
-                            continue
-                        
-                        # Build retry audio: context prefix (5s) + collapsed chunk(s)
-                        context_samples = int(LANG_COLLAPSE_CONTEXT_SEC * 16000)
-                        anchor_audio = chunks[anchor_idx]['audio_np']
-                        
+                    if anchor_idx < group[0]:
+                        # Anchor is BEFORE collapsed group → take last N seconds of anchor
+                        context = anchor_audio[-context_samples:] if len(anchor_audio) > context_samples else anchor_audio
+                    else:
+                        # Anchor is AFTER collapsed group → take first N seconds of anchor
+                        context = anchor_audio[:context_samples] if len(anchor_audio) > context_samples else anchor_audio
+                    
+                    # Concatenate collapsed chunks
+                    collapsed_audio = np.concatenate([chunks[i]['audio_np'] for i in group])
+                    
+                    # Build retry audio
+                    if anchor_idx < group[0]:
+                        retry_audio = np.concatenate([context, collapsed_audio])
+                    else:
+                        retry_audio = np.concatenate([collapsed_audio, context])
+                    
+                    # Run retry inference
+                    _slog(conn_id, f"[LangCollapse] Retrying group {group} with anchor {anchor_idx+1} ({len(retry_audio)/16000:.1f}s audio)")
+                    retry_transcript, retry_elapsed = _run_inference_for_chunk(retry_audio, temp_retry_config, conn_id)
+                    retry_detection = _detect_language_collapse(retry_transcript)
+                    
+                    if not retry_detection["is_collapsed"]:
+                        # Retry succeeded! Extract only the collapsed portion's transcript
+                        anchor_text = transcripts[anchor_idx][0]
                         if anchor_idx < group[0]:
-                            # Anchor is BEFORE collapsed group → take last N seconds of anchor
-                            context = anchor_audio[-context_samples:] if len(anchor_audio) > context_samples else anchor_audio
+                            # Context was at the beginning → trim anchor's text from start
+                            overlap = _exact_overlap_chars(anchor_text, retry_transcript)
+                            corrected_text = retry_transcript[overlap:] if overlap else retry_transcript
                         else:
-                            # Anchor is AFTER collapsed group → take first N seconds of anchor
-                            context = anchor_audio[:context_samples] if len(anchor_audio) > context_samples else anchor_audio
+                            # Context was at the end → trim anchor's text from end
+                            overlap = _exact_overlap_chars(retry_transcript, anchor_text)
+                            corrected_text = retry_transcript[:len(retry_transcript)-overlap] if overlap else retry_transcript
                         
-                        # Concatenate collapsed chunks
-                        collapsed_audio = np.concatenate([chunks[i]['audio_np'] for i in group])
-                        
-                        # Build retry audio
-                        if anchor_idx < group[0]:
-                            retry_audio = np.concatenate([context, collapsed_audio])
-                        else:
-                            retry_audio = np.concatenate([collapsed_audio, context])
-                        
-                        # Run retry inference
-                        _slog(conn_id, f"[LangCollapse] Retrying group {group} with anchor {anchor_idx+1} ({len(retry_audio)/16000:.1f}s audio)")
-                        retry_transcript, retry_elapsed = _run_inference_for_chunk(retry_audio, temp_retry_config, conn_id)
-                        retry_detection = _detect_language_collapse(retry_transcript)
-                        
-                        if not retry_detection["is_collapsed"]:
-                            # Retry succeeded! Extract only the collapsed portion's transcript
-                            anchor_text = transcripts[anchor_idx][0]
-                            if anchor_idx < group[0]:
-                                # Context was at the beginning → trim anchor's text from start
-                                overlap = _exact_overlap_chars(anchor_text, retry_transcript)
-                                corrected_text = retry_transcript[overlap:] if overlap else retry_transcript
+                        # Replace collapsed chunks' transcripts
+                        for j, idx in enumerate(group):
+                            if j == 0:
+                                transcripts[idx] = (corrected_text, transcripts[idx][1])
                             else:
-                                # Context was at the end → trim anchor's text from end
-                                overlap = _exact_overlap_chars(retry_transcript, anchor_text)
-                                corrected_text = retry_transcript[:len(retry_transcript)-overlap] if overlap else retry_transcript
+                                transcripts[idx] = ("", transcripts[idx][1])
+                        
+                        lang_retries.append({"group": group, "anchor": anchor_idx, "status": "fixed"})
+                        _slog(conn_id, f"[LangCollapse] Group {group} fixed via anchor chunk {anchor_idx+1}")
+                    else:
+                        # If retry with anchor failed AND it's Chunk 0, try fallback trim
+                        if 0 in group:
+                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED, trying fallback for Chunk 0 (trim 500ms)")
+                            cutoff_samples = int(0.5 * 16000)
+                            group_audio = np.concatenate([chunks[i]['audio_np'] for i in group])
                             
-                            # Replace collapsed chunks' transcripts
-                            for j, idx in enumerate(group):
-                                if j == 0:
-                                    transcripts[idx] = (corrected_text, transcripts[idx][1])
-                                else:
-                                    transcripts[idx] = ("", transcripts[idx][1])
-                            
-                            lang_retries.append({"group": group, "anchor": anchor_idx, "status": "fixed"})
-                            _slog(conn_id, f"[LangCollapse] Group {group} fixed via anchor chunk {anchor_idx+1}")
-                        else:
-                            # If retry with anchor failed AND it's Chunk 0, try fallback trim
-                            if 0 in group:
-                                _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED, trying fallback for Chunk 0 (trim 500ms)")
-                                cutoff_samples = int(0.5 * 16000)
-                                group_audio = np.concatenate([chunks[i]['audio_np'] for i in group])
+                            if len(group_audio) > cutoff_samples + int(0.5 * 16000): # Ensure at least 0.5s remains
+                                fallback_audio = group_audio[cutoff_samples:]
+                                fallback_transcript, _ = _run_inference_for_chunk(fallback_audio, temp_retry_config, conn_id)
+                                fallback_detection = _detect_language_collapse(fallback_transcript)
                                 
-                                if len(group_audio) > cutoff_samples + int(0.5 * 16000): # Ensure at least 0.5s remains
-                                    fallback_audio = group_audio[cutoff_samples:]
-                                    fallback_transcript, _ = _run_inference_for_chunk(fallback_audio, temp_retry_config, conn_id)
-                                    fallback_detection = _detect_language_collapse(fallback_transcript)
-                                    
-                                    if not fallback_detection["is_collapsed"]:
-                                        for j, idx in enumerate(group):
-                                            if j == 0:
-                                                transcripts[idx] = (fallback_transcript, transcripts[idx][1])
-                                            else:
-                                                transcripts[idx] = ("", transcripts[idx][1])
-                                        lang_retries.append({"group": group, "anchor": anchor_idx, "status": "fixed_fallback_trim"})
-                                        _slog(conn_id, f"[LangCollapse] Group {group} fixed via 500ms trim fallback")
-                                    else:
-                                        lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_fallback"})
-                                        _slog(conn_id, f"[LangCollapse] Group {group} fallback FAILED, keeping original")
+                                if not fallback_detection["is_collapsed"]:
+                                    for j, idx in enumerate(group):
+                                        if j == 0:
+                                            transcripts[idx] = (fallback_transcript, transcripts[idx][1])
+                                        else:
+                                            transcripts[idx] = ("", transcripts[idx][1])
+                                    lang_retries.append({"group": group, "anchor": anchor_idx, "status": "fixed_fallback_trim"})
+                                    _slog(conn_id, f"[LangCollapse] Group {group} fixed via 500ms trim fallback")
                                 else:
-                                    lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_too_short"})
-                                    _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback")
+                                    lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_fallback"})
+                                    _slog(conn_id, f"[LangCollapse] Group {group} fallback FAILED, keeping original")
                             else:
-                                lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
-                                _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['ascii_ratio']}), keeping original")
-            
-            # Merge transcripts
-            transcript = _merge_chunk_transcripts(transcripts, chunk_infos)
-            elapsed = time.time() - t0
-            _slog(conn_id, f"chunked_inference_finished  elapsed={elapsed:.2f}s  total_chunks={len(chunks)}  transcript_len={len(transcript)}")
-            return transcript, elapsed, lang_retries
+                                lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_too_short"})
+                                _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback")
+                        else:
+                            lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
+                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['ascii_ratio']}), keeping original")
+        
+        # Merge transcripts
+        transcript = _merge_chunk_transcripts(transcripts, chunk_infos)
+        return transcript, lang_retries
 
-    # Run primary inference
-    transcript, elapsed, lang_collapse_retries = run_inference_with_config(trimmed_audio)
-
+    # Run primary inference (Trial 1)
+    t_inf_start = time.time()
+    transcript, lang_collapse_retries = run_inference_with_config(trimmed_audio)
+    
     # =========================================================================
-    # PHA 3: HALLUCINATION GUARDRAILS (LOG ONLY MODE)
+    # PHA 3: HALLUCINATION GUARDRAILS & MULTI-TEMPERATURE RETRY
     # =========================================================================
     guardrail_result = _check_hallucination_guardrails(transcript, trimmed_duration, conn_id, "[Primary] ")
+    
+    best_transcript = transcript
+    best_severity = guardrail_result["severity"]
+    severity_order = {"none": 0, "low": 1, "medium": 2, "high": 3}
+    
+    # Multi-temperature retry (if suspicious)
+    if guardrail_result["is_suspicious"] and severity_order[best_severity] >= severity_order["medium"] and ENABLE_RETRY_HALLUCINATION:
+        retry_temps = [0.3, 0.5]
+        for r_temp in retry_temps:
+            _slog(conn_id, f"[Guardrail] Severity {best_severity} detected. Attempting retry with temperature={r_temp}...")
+            retry_transcript, _ = run_inference_with_config(trimmed_audio, temp_override=r_temp)
+            retry_guardrail = _check_hallucination_guardrails(retry_transcript, trimmed_duration, conn_id, f"[Retry T={r_temp}] ")
+            
+            # If retry has lower severity, adopt it
+            if severity_order[retry_guardrail["severity"]] < severity_order[best_severity]:
+                _slog(conn_id, f"[Guardrail] Retry T={r_temp} improved severity: {best_severity} -> {retry_guardrail['severity']}")
+                best_transcript = retry_transcript
+                best_severity = retry_guardrail["severity"]
+                guardrail_result = retry_guardrail
+                if best_severity == "none":
+                    break
+            else:
+                _slog(conn_id, f"[Guardrail] Retry T={r_temp} did not improve result (severity={retry_guardrail['severity']})")
 
-    # Retry logic (if enabled and suspicious output detected)
-    if guardrail_result["is_suspicious"] and ENABLE_RETRY_HALLUCINATION:
-        _slog(conn_id, f"[Guardrail] Retrying inference with temperature={RETRY_TEMPERATURE}")
-        retry_transcript, retry_elapsed, _ = run_inference_with_config(trimmed_audio, temp_override=RETRY_TEMPERATURE)
-
-        # Check if retry produced better result
-        retry_guardrail = _check_hallucination_guardrails(retry_transcript, trimmed_duration, conn_id, "[Retry] ")
-
-        if not retry_guardrail["is_suspicious"] or len(retry_transcript) > len(transcript):
-            _slog(conn_id, f"[Guardrail] Retry improved result: {len(retry_transcript)} chars vs {len(transcript)} chars")
-            transcript = retry_transcript
-            elapsed = retry_elapsed
-            guardrail_result = retry_guardrail
-        else:
-            _slog(conn_id, f"[Guardrail] Retry did not improve result, keeping original")
-
-    # LOG ONLY: Do not reject output - return transcript for evaluation
+    transcript = best_transcript
+    elapsed = time.time() - t_inf_start
+    
     _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}  hallucination_warning={guardrail_result['is_suspicious']}")
     vad_result = dict(vad_info)
     vad_result["hallucination_warning"] = guardrail_result["is_suspicious"]
+    vad_result["hallucination_severity"] = best_severity
     return _inference_result(transcript, vad_result, lang_collapse_retries)
 
 
