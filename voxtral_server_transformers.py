@@ -58,7 +58,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-18.v13"
+_SERVER_VERSION = "2026-05-18.v14"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -287,94 +287,104 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
                              max_chunk_sec: float = CHUNK_LIMIT_SEC, 
                              padding_ms: int = VAD_CHUNK_PADDING_MS) -> list:
     """
-    Partition 100% of the audio timeline into gapless chunks <= max_chunk_sec.
-    Splits at candidate silent points between speech segments when possible,
-    and uses mathematically correct overlapping sub-chunks for long segments,
-    ensuring no gaps and no ultra-short chunks (< 5.0s).
+    Creates chunks targeting ONLY the regions where speech was detected.
+    Expands each speech segment by padding_ms, merges overlapping regions,
+    ensures regions are at least 3.0s to preserve context,
+    and splits long regions into overlapping sub-chunks.
     """
+    if not speech_timestamps:
+        return []
+
     total_samples = len(audio_np)
+    pad_samples = int((padding_ms / 1000.0) * sample_rate)
+    min_chunk_samples = int(3.0 * sample_rate)
     max_chunk_samples = int(max_chunk_sec * sample_rate)
-    min_chunk_sec = 5.0
-    min_chunk_samples = int(min_chunk_sec * sample_rate)
     overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
 
-    # 1. Generate split points in the middle of silence gaps between speech segments
-    candidate_splits = [0]
-    if speech_timestamps:
-        for i in range(len(speech_timestamps) - 1):
-            gap_mid = (speech_timestamps[i]['end'] + speech_timestamps[i+1]['start']) // 2
-            candidate_splits.append(gap_mid)
-    candidate_splits.append(total_samples)
-    candidate_splits = sorted(list(set(candidate_splits)))
-
-    chunks = []
-    current_start = 0
-
-    while current_start < total_samples:
-        remaining_samples = total_samples - current_start
-        if remaining_samples <= max_chunk_samples:
-            # Last chunk fits within limit
-            chunk_start = current_start
-            if remaining_samples < min_chunk_samples:
-                # If too short, extend backward to max_chunk_samples to ensure robust context/decoding
-                chunk_start = max(0, total_samples - max_chunk_samples)
-            
-            chunk_audio = audio_np[chunk_start:total_samples]
-            chunks.append({
-                "audio_np": chunk_audio,
-                "start_sec": chunk_start / sample_rate,
-                "end_sec": total_samples / sample_rate,
-                "segments_count": 0,
-                "is_sub_chunk": False,
-            })
-            break
-
-        # Search for candidate split points in [current_start + min_chunk_samples, current_start + max_chunk_samples]
-        valid_splits = [s for s in candidate_splits if current_start + min_chunk_samples <= s <= current_start + max_chunk_samples]
-
-        if valid_splits:
-            # Pick the largest split point in range
-            split_point = max(valid_splits)
-            chunk_audio = audio_np[current_start:split_point]
-            chunks.append({
-                "audio_np": chunk_audio,
-                "start_sec": current_start / sample_rate,
-                "end_sec": split_point / sample_rate,
-                "segments_count": 0,
-                "is_sub_chunk": False,
-            })
-            current_start = split_point
+    # 1. Expand and merge speech segments into contiguous regions
+    regions = []
+    for ts in speech_timestamps:
+        start = max(0, ts['start'] - pad_samples)
+        end = min(total_samples, ts['end'] + pad_samples)
+        
+        if not regions:
+            regions.append([start, end])
         else:
-            # No valid split point in range. Find the first split point greater than current_start + max_chunk_samples
-            next_splits = [s for s in candidate_splits if s > current_start + max_chunk_samples]
-            if next_splits:
-                next_split_point = min(next_splits)
+            last_region = regions[-1]
+            if start <= last_region[1]:
+                # Overlap or touching, merge them
+                last_region[1] = max(last_region[1], end)
             else:
-                next_split_point = total_samples
+                regions.append([start, end])
 
-            # Split [current_start, next_split_point] into overlapping sub-chunks of max_chunk_samples size
-            segment_duration = next_split_point - current_start
-            n_chunks = math.ceil((segment_duration - overlap_samples) / (max_chunk_samples - overlap_samples))
+    # 2. Enforce minimum chunk size (3.0s) for each region to give Whisper context
+    for r in regions:
+        duration_samples = r[1] - r[0]
+        if duration_samples < min_chunk_samples:
+            deficit = min_chunk_samples - duration_samples
+            # Expand evenly
+            expand_left = deficit // 2
+            expand_right = deficit - expand_left
+            
+            new_start = r[0] - expand_left
+            new_end = r[1] + expand_right
+            
+            # Clamp and shift if hitting boundaries
+            if new_start < 0:
+                new_end += (0 - new_start)
+                new_start = 0
+            if new_end > total_samples:
+                new_start -= (new_end - total_samples)
+                new_start = max(0, new_start)
+                new_end = total_samples
+                
+            r[0] = new_start
+            r[1] = new_end
+
+    # 3. Merge again in case expanding for min size caused overlap
+    merged_regions = []
+    for r in regions:
+        if not merged_regions:
+            merged_regions.append(r)
+        else:
+            last_region = merged_regions[-1]
+            if r[0] <= last_region[1]:
+                last_region[1] = max(last_region[1], r[1])
+            else:
+                merged_regions.append(r)
+
+    # 4. Generate final chunks from the regions
+    chunks = []
+    for r in merged_regions:
+        r_start, r_end = r[0], r[1]
+        region_duration = r_end - r_start
+        
+        if region_duration <= max_chunk_samples:
+            chunks.append({
+                "audio_np": audio_np[r_start:r_end],
+                "start_sec": r_start / sample_rate,
+                "end_sec": r_end / sample_rate,
+                "segments_count": 0,
+                "is_sub_chunk": False,
+            })
+        else:
+            # Region is larger than max_chunk_samples, split into overlapping sub-chunks
+            n_chunks = math.ceil((region_duration - overlap_samples) / (max_chunk_samples - overlap_samples))
             n_chunks = max(2, n_chunks)
-
-            # Mathematically exact step size calculation
-            step = (segment_duration - max_chunk_samples) / (n_chunks - 1)
+            step = (region_duration - max_chunk_samples) / (n_chunks - 1)
             
             for idx in range(n_chunks):
                 sub_pos = int(idx * step)
-                sub_start = current_start + sub_pos
-                sub_end = min(sub_start + max_chunk_samples, next_split_point)
+                sub_start = r_start + sub_pos
+                sub_end = min(sub_start + max_chunk_samples, r_end)
                 
-                sub_audio = audio_np[sub_start:sub_end]
                 chunks.append({
-                    "audio_np": sub_audio,
+                    "audio_np": audio_np[sub_start:sub_end],
                     "start_sec": sub_start / sample_rate,
                     "end_sec": sub_end / sample_rate,
                     "segments_count": 0,
                     "is_sub_chunk": True,
                 })
-            
-            current_start = next_split_point
 
     return chunks
 
