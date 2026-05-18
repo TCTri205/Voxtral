@@ -139,12 +139,12 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. Telephony Band-Pass Filter (300Hz to 3.4kHz) for telephony voice clarity
+    # 2. High-Pass Filter (80Hz) to remove low-frequency rumble
     try:
-        sos = signal.butter(4, [300, 3400], btype='bandpass', fs=sample_rate, output='sos')
+        sos = signal.butter(4, 80, 'hp', fs=sample_rate, output='sos')
         audio_np = signal.sosfilt(sos, audio_np)
     except Exception as e:
-        _slog(conn_id, f"Preprocessing: BPF failed: {e}")
+        _slog(conn_id, f"Preprocessing: HPF failed: {e}")
 
     # 3. RMS Calculation
     rms = np.sqrt(np.mean(audio_np**2))
@@ -168,7 +168,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # Final safety clip
     audio_np = np.clip(audio_np, -1.0, 1.0)
     
-    _slog(conn_id, f"Preprocessing: BPF(300-3400Hz) + RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
+    _slog(conn_id, f"Preprocessing: HPF(80Hz) + RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np.astype(np.float32)
 
