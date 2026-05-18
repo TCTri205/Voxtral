@@ -38,7 +38,7 @@ VAD_MIN_SPEECH_DURATION_MS = 400
 VAD_MIN_SILENCE_DURATION_MS = 100
 
 # Online VAD-Aware Chunking config
-VAD_SEGMENT_SILENCE_MS = 700  # Tightened from 1000 to break chunks earlier
+VAD_SEGMENT_SILENCE_MS = 1000  # Increased from 700ms to avoid premature chunk cutting and over-segmentation
 VAD_CHUNK_PADDING_MS = 200     # Reverted to v2 padding to avoid capturing noise
 
 # Hallucination guardrails config
@@ -47,7 +47,7 @@ ENABLE_RETRY_HALLUCINATION = True
 RETRY_TEMPERATURE = 0.2
 
 # Language Collapse Auto-Recovery config
-LANG_COLLAPSE_ASCII_RATIO = 0.7
+LANG_COLLAPSE_JP_RATIO = 0.55  # Ratio of Japanese characters over total alphabetical letters
 LANG_COLLAPSE_MIN_CHARS = 5
 LANG_COLLAPSE_CONTEXT_SEC = 5.0
 LANG_COLLAPSE_MAX_RETRY_CHUNKS = 3
@@ -57,7 +57,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-14.4"
+_SERVER_VERSION = "2026-05-18.v10"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -69,7 +69,7 @@ def _vad_config_metadata() -> dict:
         "VAD_CHUNK_PADDING_MS": VAD_CHUNK_PADDING_MS,
         "CHUNK_LIMIT_SEC": CHUNK_LIMIT_SEC,
         "CHUNK_OVERLAP_SEC": CHUNK_OVERLAP_SEC,
-        "LANG_COLLAPSE_ASCII_RATIO": LANG_COLLAPSE_ASCII_RATIO,
+        "LANG_COLLAPSE_JP_RATIO": LANG_COLLAPSE_JP_RATIO,
         "LANG_COLLAPSE_RECOVERY": ENABLE_LANG_COLLAPSE_RECOVERY,
         "PREPROCESSING_ENABLED": ENABLE_PREPROCESSING,
         "_SERVER_VERSION": _SERVER_VERSION,
@@ -85,28 +85,41 @@ def _inference_result(transcript: str, vad_result: dict | None = None, lang_coll
     }
 
 
+def _is_japanese_char(c: str) -> bool:
+    code = ord(c)
+    if 0x3040 <= code <= 0x309F: # Hiragana
+        return True
+    if 0x30A0 <= code <= 0x30FF: # Katakana
+        return True
+    if 0x4E00 <= code <= 0x9FFF: # Kanji (CJK Unified Ideographs)
+        return True
+    if 0xFF66 <= code <= 0xFF9F: # Half-width Katakana
+        return True
+    return False
+
+
 def _detect_language_collapse(transcript: str) -> dict:
     """
-    Detect if the transcript is likely a language collapse (hallucinated English).
-    Uses the ratio of ASCII alphabetic characters to total non-whitespace characters.
+    Detect if the transcript is likely a language collapse (hallucinated English/Russian).
+    Uses the ratio of Japanese characters to total alphabetic letters.
     """
     text = transcript.strip()
     if len(text) == 0:
-        return {"is_collapsed": True, "ascii_ratio": 0.0, "reason": "empty_transcript"}
+        return {"is_collapsed": True, "jp_ratio": 0.0, "reason": "empty_transcript"}
     if len(text) < LANG_COLLAPSE_MIN_CHARS:
-        return {"is_collapsed": False, "ascii_ratio": 0.0, "reason": "too_short"}
+        return {"is_collapsed": False, "jp_ratio": 1.0, "reason": "too_short"}
     
-    non_ws = [c for c in text if not c.isspace()]
-    if not non_ws:
-        return {"is_collapsed": False, "ascii_ratio": 0.0, "reason": "empty"}
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return {"is_collapsed": False, "jp_ratio": 1.0, "reason": "no_alpha"}
     
-    ascii_alpha = sum(1 for c in non_ws if c.isascii() and c.isalpha())
-    ratio = ascii_alpha / len(non_ws)
+    jp_letters = [c for c in letters if _is_japanese_char(c)]
+    ratio = len(jp_letters) / len(letters)
     
     return {
-        "is_collapsed": ratio > LANG_COLLAPSE_ASCII_RATIO,
-        "ascii_ratio": round(ratio, 3),
-        "reason": f"ascii_ratio={ratio:.1%}" if ratio > LANG_COLLAPSE_ASCII_RATIO else "ok",
+        "is_collapsed": ratio < LANG_COLLAPSE_JP_RATIO,
+        "jp_ratio": round(ratio, 3),
+        "reason": f"jp_ratio={ratio:.1%} < {LANG_COLLAPSE_JP_RATIO:.0%}" if ratio < LANG_COLLAPSE_JP_RATIO else "ok",
     }
 
 
@@ -126,12 +139,12 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. High-Pass Filter (80Hz) to remove low-frequency rumble
+    # 2. Telephony Band-Pass Filter (300Hz to 3.4kHz) for telephony voice clarity
     try:
-        sos = signal.butter(4, 80, 'hp', fs=sample_rate, output='sos')
+        sos = signal.butter(4, [300, 3400], btype='bandpass', fs=sample_rate, output='sos')
         audio_np = signal.sosfilt(sos, audio_np)
     except Exception as e:
-        _slog(conn_id, f"Preprocessing: HPF failed: {e}")
+        _slog(conn_id, f"Preprocessing: BPF failed: {e}")
 
     # 3. RMS Calculation
     rms = np.sqrt(np.mean(audio_np**2))
@@ -155,7 +168,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # Final safety clip
     audio_np = np.clip(audio_np, -1.0, 1.0)
     
-    _slog(conn_id, f"Preprocessing: HPF(80Hz) + RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
+    _slog(conn_id, f"Preprocessing: BPF(300-3400Hz) + RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np.astype(np.float32)
 
@@ -402,7 +415,7 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
 
 class RepetitionStoppingCriteria(StoppingCriteria):
     """Stopping criteria that interrupts generation if it detects n-gram loops."""
-    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5)):
+    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5, 6, 7, 8)):
         self.tokenizer = tokenizer
         self.threshold = threshold
         self.n_range = n_range
@@ -431,6 +444,16 @@ class RepetitionStoppingCriteria(StoppingCriteria):
             if gram * current_threshold == tail:
                 return True
         return False
+
+
+class TimeBasedStoppingCriteria(StoppingCriteria):
+    """Stopping criteria that interrupts generation if elapsed time exceeds a limit."""
+    def __init__(self, max_seconds: float = 15.0):
+        self.max_seconds = max_seconds
+        self.start_time = time.time()
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        return (time.time() - self.start_time) > self.max_seconds
 
 
 def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id: str, on_delta=None) -> tuple:
@@ -469,8 +492,10 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
 
     # Setup streamer and stopping criteria
     streamer = TextIteratorStreamer(processor.tokenizer, skip_special_tokens=True, skip_prompt=True)
+    time_stopping_criteria = TimeBasedStoppingCriteria(max_seconds=15.0)
     stopping_criteria = StoppingCriteriaList([
-        RepetitionStoppingCriteria(processor.tokenizer, threshold=3)
+        RepetitionStoppingCriteria(processor.tokenizer, threshold=3),
+        time_stopping_criteria
     ])
 
     generation_kwargs = dict(
@@ -513,6 +538,8 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     transcript = full_transcript.strip()
 
     elapsed = time.time() - t0
+    if elapsed >= 15.0:
+        _slog(conn_id, f"WARNING: Generation took {elapsed:.2f}s (stalled or hit timeout limit)")
     return transcript, elapsed
 
 
@@ -975,7 +1002,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                                 _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback")
                         else:
                             lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
-                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['ascii_ratio']}), keeping original")
+                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['jp_ratio']}), keeping original")
         
         # Merge transcripts
         transcript = _merge_chunk_transcripts(transcripts, chunk_infos)
