@@ -38,7 +38,7 @@ VAD_MIN_SPEECH_DURATION_MS = 400
 VAD_MIN_SILENCE_DURATION_MS = 100
 
 # Online VAD-Aware Chunking config
-VAD_SEGMENT_SILENCE_MS = 1000  # Increased from 700ms to avoid premature chunk cutting and over-segmentation
+VAD_SEGMENT_SILENCE_MS = 700   # Reverted to v9 value – 1000ms created chunks too large, hitting timeout wall
 VAD_CHUNK_PADDING_MS = 200     # Reverted to v2 padding to avoid capturing noise
 
 # Hallucination guardrails config
@@ -57,7 +57,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-18.v10"
+_SERVER_VERSION = "2026-05-18.v11"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -415,7 +415,7 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
 
 class RepetitionStoppingCriteria(StoppingCriteria):
     """Stopping criteria that interrupts generation if it detects n-gram loops."""
-    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5, 6, 7, 8)):
+    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5)):
         self.tokenizer = tokenizer
         self.threshold = threshold
         self.n_range = n_range
@@ -430,30 +430,19 @@ class RepetitionStoppingCriteria(StoppingCriteria):
         if len(clean_text) < 10:
             return False
 
-        # Stricter detection for longer n-grams
         for n in self.n_range:
-            # Check for repeating n-grams at the very end of the text
-            # Threshold 2 for n >= 4 to catch phrases earlier
-            current_threshold = 2 if n >= 4 else self.threshold
-            
-            if len(clean_text) < n * current_threshold:
+            if len(clean_text) < n * self.threshold:
                 continue
-            
-            tail = clean_text[-(n * current_threshold):]
+            tail = clean_text[-(n * self.threshold):]
             gram = tail[-n:]
-            if gram * current_threshold == tail:
+            if gram * self.threshold == tail:
                 return True
         return False
 
 
-class TimeBasedStoppingCriteria(StoppingCriteria):
-    """Stopping criteria that interrupts generation if elapsed time exceeds a limit."""
-    def __init__(self, max_seconds: float = 15.0):
-        self.max_seconds = max_seconds
-        self.start_time = time.time()
-
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
-        return (time.time() - self.start_time) > self.max_seconds
+# TimeBasedStoppingCriteria removed – it was killing generation after 15s even when
+# inference RTF > 1.0x, causing chunks to be silently truncated mid-sentence.
+# The RepetitionStoppingCriteria + max_new_tokens=512 are sufficient safeguards.
 
 
 def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id: str, on_delta=None) -> tuple:
@@ -492,10 +481,8 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
 
     # Setup streamer and stopping criteria
     streamer = TextIteratorStreamer(processor.tokenizer, skip_special_tokens=True, skip_prompt=True)
-    time_stopping_criteria = TimeBasedStoppingCriteria(max_seconds=15.0)
     stopping_criteria = StoppingCriteriaList([
-        RepetitionStoppingCriteria(processor.tokenizer, threshold=3),
-        time_stopping_criteria
+        RepetitionStoppingCriteria(processor.tokenizer, threshold=3)
     ])
 
     generation_kwargs = dict(
@@ -538,8 +525,8 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     transcript = full_transcript.strip()
 
     elapsed = time.time() - t0
-    if elapsed >= 15.0:
-        _slog(conn_id, f"WARNING: Generation took {elapsed:.2f}s (stalled or hit timeout limit)")
+    if elapsed >= 30.0:
+        _slog(conn_id, f"WARNING: Generation took {elapsed:.2f}s (unusually slow chunk)")
     return transcript, elapsed
 
 
