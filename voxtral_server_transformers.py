@@ -33,7 +33,7 @@ CHUNK_OVERLAP_SEC = 1.0
 VAD_PADDING_MS = 300  # Tightened from 400ms to reduce trailing silence hallucinations
 
 # Silero VAD configuration (optimized for Japanese business conversations)
-VAD_THRESHOLD = 0.70  # Increased from 0.65 to be more selective in noisy telephony audio
+VAD_THRESHOLD = 0.45  # Optimized to safely capture quiet/conversational telephony speech
 VAD_MIN_SPEECH_DURATION_MS = 400
 VAD_MIN_SILENCE_DURATION_MS = 100
 
@@ -57,7 +57,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-18.v11"
+_SERVER_VERSION = "2026-05-18.v12"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -286,131 +286,80 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
                              max_chunk_sec: float = CHUNK_LIMIT_SEC, 
                              padding_ms: int = VAD_CHUNK_PADDING_MS) -> list:
     """
-    Group VAD speech segments into chunks <= max_chunk_sec.
-    
-    Args:
-        audio_np: The audio numpy array
-        speech_timestamps: List of dicts with 'start' and 'end' sample indices
-        sample_rate: Audio sampling rate
-        max_chunk_sec: Maximum duration of a chunk in seconds
-        padding_ms: Padding to add around chunks
-        
-    Returns:
-        List of dicts containing 'audio_np', 'start_sec', 'end_sec', 'segments_count'
+    Partition 100% of the audio timeline into gapless chunks <= max_chunk_sec,
+    splitting exactly in the middle of silence gaps between speech segments.
     """
     if not speech_timestamps:
         return []
         
-    chunks = []
-    current_chunk_segments = [speech_timestamps[0]]
-    current_chunk_start = speech_timestamps[0]['start']
-    current_chunk_end = speech_timestamps[0]['end']
-    
-    padding_samples = int((padding_ms / 1000.0) * sample_rate)
+    total_samples = len(audio_np)
     max_chunk_samples = int(max_chunk_sec * sample_rate)
     
-    for i in range(1, len(speech_timestamps)):
-        segment = speech_timestamps[i]
-        
-        # Calculate potential new chunk size if we add this segment
-        # (including the silence gap between current_chunk_end and segment['start'])
-        potential_chunk_end = segment['end']
-        potential_chunk_size = potential_chunk_end - current_chunk_start
-        
-        if potential_chunk_size <= max_chunk_samples:
-            # Segment fits in current chunk
-            current_chunk_end = segment['end']
-            current_chunk_segments.append(segment)
-        else:
-            # Add padding and finalize current chunk
-            start_idx = max(0, current_chunk_start - padding_samples)
-            end_idx = min(len(audio_np), current_chunk_end + padding_samples)
+    # 1. Generate split points in the middle of silence gaps between speech segments
+    splits = [0]
+    for i in range(len(speech_timestamps) - 1):
+        gap_mid = (speech_timestamps[i]['end'] + speech_timestamps[i+1]['start']) // 2
+        splits.append(gap_mid)
+    splits.append(total_samples)
+    
+    # Each segment i is contained in [splits[i], splits[i+1]]
+    # 2. Group these candidate chunks to form larger chunks up to max_chunk_sec
+    chunks = []
+    current_start = 0
+    current_end = splits[1]
+    segments_in_chunk = 1
+    
+    def append_chunk(start_idx, end_idx, seg_count):
+        chunk_audio = audio_np[start_idx:end_idx]
+        if len(chunk_audio) > max_chunk_samples:
+            # Split evenly with overlap
+            chunk_duration = len(chunk_audio) / sample_rate
+            overlap_sec = CHUNK_OVERLAP_SEC
+            n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
             
-            chunk_audio = audio_np[start_idx:end_idx]
+            effective_duration = chunk_duration - overlap_sec
+            step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
+            step_samples = int(step * sample_rate)
             
-            # Sub-chunking if a single segment (or a previously started chunk) is somehow longer than max_chunk_sec
-            if len(chunk_audio) > max_chunk_samples:
-                # Split evenly with consistent overlap between chunks
-                chunk_duration = len(chunk_audio) / sample_rate
-                overlap_sec = CHUNK_OVERLAP_SEC
-
-                # Calculate number of even chunks needed
-                n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
-
-                # Calculate effective step to distribute chunks evenly
-                effective_duration = chunk_duration - overlap_sec
-                step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
-                step_samples = int(step * sample_rate)
-                overlap_samples = int(overlap_sec * sample_rate)
-
-                for i in range(n_chunks):
-                    sub_pos = int(i * step_samples)
-                    sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
-                    sub_audio = chunk_audio[sub_pos:sub_end]
-
-                    actual_start_sec = (start_idx + sub_pos) / sample_rate
-                    actual_end_sec = (start_idx + sub_end) / sample_rate
-
-                    chunks.append({
-                        "audio_np": sub_audio,
-                        "start_sec": actual_start_sec,
-                        "end_sec": actual_end_sec,
-                        "segments_count": len(current_chunk_segments) if i == 0 else 0,
-                        "is_sub_chunk": True,
-                    })
-            else:
+            for idx in range(n_chunks):
+                sub_pos = int(idx * step_samples)
+                sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
+                sub_audio = chunk_audio[sub_pos:sub_end]
+                
                 chunks.append({
-                    "audio_np": chunk_audio,
-                    "start_sec": start_idx / sample_rate,
-                    "end_sec": end_idx / sample_rate,
-                    "segments_count": len(current_chunk_segments),
-                    "is_sub_chunk": False,
+                    "audio_np": sub_audio,
+                    "start_sec": (start_idx + sub_pos) / sample_rate,
+                    "end_sec": (start_idx + sub_end) / sample_rate,
+                    "segments_count": seg_count if idx == 0 else 0,
+                    "is_sub_chunk": True,
                 })
+        else:
+            chunks.append({
+                "audio_np": chunk_audio,
+                "start_sec": start_idx / sample_rate,
+                "end_sec": end_idx / sample_rate,
+                "segments_count": seg_count,
+                "is_sub_chunk": False,
+            })
+            
+    for i in range(1, len(speech_timestamps)):
+        next_split = splits[i+1]
+        potential_size = next_split - current_start
+        
+        if potential_size <= max_chunk_samples:
+            current_end = next_split
+            segments_in_chunk += 1
+        else:
+            # Finalize current chunk [current_start, current_end]
+            append_chunk(current_start, current_end, segments_in_chunk)
             
             # Start new chunk
-            current_chunk_start = segment['start']
-            current_chunk_end = segment['end']
-            current_chunk_segments = [segment]
+            current_start = current_end
+            current_end = next_split
+            segments_in_chunk = 1
             
-    # Process final chunk
-    start_idx = max(0, current_chunk_start - padding_samples)
-    end_idx = min(len(audio_np), current_chunk_end + padding_samples)
-    chunk_audio = audio_np[start_idx:end_idx]
-    
-    if len(chunk_audio) > max_chunk_samples:
-        # Split evenly with consistent overlap between chunks
-        chunk_duration = len(chunk_audio) / sample_rate
-        overlap_sec = CHUNK_OVERLAP_SEC
-
-        # Calculate number of even chunks needed
-        n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
-
-        # Calculate effective step to distribute chunks evenly
-        effective_duration = chunk_duration - overlap_sec
-        step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
-        step_samples = int(step * sample_rate)
-
-        for i in range(n_chunks):
-            sub_pos = int(i * step_samples)
-            sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
-            sub_audio = chunk_audio[sub_pos:sub_end]
-
-            chunks.append({
-                "audio_np": sub_audio,
-                "start_sec": (start_idx + sub_pos) / sample_rate,
-                "end_sec": (start_idx + sub_end) / sample_rate,
-                "segments_count": len(current_chunk_segments) if i == 0 else 0,
-                "is_sub_chunk": True,
-            })
-    else:
-        chunks.append({
-            "audio_np": chunk_audio,
-            "start_sec": start_idx / sample_rate,
-            "end_sec": end_idx / sample_rate,
-            "segments_count": len(current_chunk_segments),
-            "is_sub_chunk": False,
-        })
-        
+    # Finalize the last chunk
+    append_chunk(current_start, current_end, segments_in_chunk)
     return chunks
 
 
@@ -572,21 +521,27 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
     """
     reasons = []
     severity = "none"
+    
+    severity_levels = {"none": 0, "low": 1, "medium": 2, "high": 3}
+    def update_severity(new_sev):
+        nonlocal severity
+        if severity_levels[new_sev] > severity_levels[severity]:
+            severity = new_sev
 
     transcript_stripped = transcript.strip()
     transcript_len = len(transcript_stripped)
 
     _slog(conn_id, f"[Guardrail] {log_prefix}Checking: transcript_len={transcript_len}, audio_duration={audio_duration:.1f}s")
 
-    # Check 1: Short transcript for long audio (potential truncation)
+    # Check 1: Short transcript for long audio (often natural for quiet turns/pauses) -> low severity
     if audio_duration > 8 and transcript_len < 6:
         reasons.append(f"Short transcript ({transcript_len} chars) for long audio ({audio_duration:.1f}s)")
-        severity = "high"
+        update_severity("low")
 
-    # Check 2: Very short transcript for medium audio
+    # Check 2: Very short transcript for medium audio -> low severity
     if 3 < audio_duration <= 8 and transcript_len < 3:
         reasons.append(f"Very short transcript ({transcript_len} chars) for medium audio ({audio_duration:.1f}s)")
-        severity = "medium"
+        update_severity("low")
 
     # Check 3: Language collapse patterns
     english_hallucination_patterns = [
@@ -599,7 +554,7 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
     detected_patterns = [p for p in english_hallucination_patterns if p in transcript_lower]
     if detected_patterns and audio_duration > 3:
         reasons.append(f"Language collapse pattern: '{detected_patterns[0]}'")
-        severity = "high"
+        update_severity("high")
 
     # Check 4: Noise-induced Japanese insertions (only flag if transcript IS exactly the pattern, very short audio)
     japanese_noise_only_patterns = [
@@ -607,18 +562,18 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
     ]
     if audio_duration < 2.0 and transcript_stripped in japanese_noise_only_patterns:
         reasons.append(f"Noise insertion pattern: '{transcript_stripped}'")
-        severity = "high"
+        update_severity("high")
 
     # Check 5: Looping patterns
     loops = _detect_ngram_loops(transcript_stripped)
     if loops:
         reasons.append(f"Looping detected: {', '.join(loops)}")
-        severity = "high"
+        update_severity("high")
 
     # Check 6: Empty transcript for non-silent audio
     if transcript_len == 0 and audio_duration > 2:
         reasons.append("Empty transcript for non-silent audio")
-        severity = "medium"
+        update_severity("medium")
 
     is_suspicious = len(reasons) > 0
     if is_suspicious:
@@ -934,9 +889,30 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             # Use on_delta only for the first chunk to maintain client UI consistency
             current_on_delta = on_delta if (i == 0 and len(chunks) == 1) else None
             
-            chunk_transcript, chunk_elapsed = _run_inference_for_chunk(chunk_info['audio_np'], retry_config, conn_id, current_on_delta)
-            
             duration = chunk_info['end_sec'] - chunk_info['start_sec']
+            
+            # Quick chunk-level VAD speech check to skip silent/noisy chunks
+            chunk_audio = chunk_info['audio_np']
+            chunk_tensor = torch.from_numpy(chunk_audio).to(torch.float32)
+            get_speech_timestamps = vad_utils[0]
+            
+            chunk_speech = get_speech_timestamps(
+                chunk_tensor, 
+                vad_model, 
+                sampling_rate=16000,
+                threshold=VAD_THRESHOLD,
+                min_speech_duration_ms=150, # Very sensitive to ensure we don't skip actual speech
+                min_silence_duration_ms=100,
+            )
+            
+            skipped_due_to_silence = False
+            if not chunk_speech:
+                _slog(conn_id, f"Inference: Skipping Chunk {i+1} ({duration:.2f}s) due to silence/no speech")
+                chunk_transcript = ""
+                chunk_elapsed = 0.0
+                skipped_due_to_silence = True
+            else:
+                chunk_transcript, chunk_elapsed = _run_inference_for_chunk(chunk_audio, retry_config, conn_id, current_on_delta)
             
             # Check for errored/suspicious chunks
             chunk_rtf = chunk_elapsed / duration if duration > 0 else 0.0
@@ -944,19 +920,21 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             
             # Sub-chunk recovery condition:
             # 1. Non-empty language collapse (i.e. is_collapsed is True and len(transcript) >= LANG_COLLAPSE_MIN_CHARS)
-            # 2. Or empty transcript but long speech chunk (VAD speech segment longer than 2.0s)
-            # 3. Or absolute decoding latency is high (> 15.0s)
-            # 4. Or RTF is high (> 1.2)
+            # 2. Or detected n-gram loops (repetition/model collapse)
+            # 3. Or empty transcript but long speech chunk (VAD speech segment longer than 2.0s)
+            # 4. Or absolute decoding latency is extremely high (> 180.0s, indicating a genuine hang)
+            # 5. Or RTF is extremely high (> 15.0, indicating runaway generation)
             has_collapse = is_collapsed and len(chunk_transcript.strip()) >= LANG_COLLAPSE_MIN_CHARS
+            has_loops = len(_detect_ngram_loops(chunk_transcript.strip())) > 0
             is_empty_on_speech = (len(chunk_transcript.strip()) == 0 and duration > 2.0)
-            exceeds_latency = chunk_elapsed > 15.0
-            exceeds_rtf = chunk_rtf > 1.2
+            exceeds_latency = chunk_elapsed > 180.0
+            exceeds_rtf = chunk_rtf > 15.0
             
-            needs_recovery = has_collapse or is_empty_on_speech or exceeds_latency or exceeds_rtf
+            needs_recovery = (has_collapse or has_loops or is_empty_on_speech or exceeds_latency or exceeds_rtf) and not skipped_due_to_silence
             retry_count = 0
             
             if needs_recovery:
-                _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} ({duration:.2f}s) suspicious: collapse={has_collapse}, empty={is_empty_on_speech}, latency={exceeds_latency}, RTF={exceeds_rtf:.2f}. Running local sub-chunk recovery...")
+                _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} ({duration:.2f}s) suspicious: collapse={has_collapse}, loops={has_loops}, empty={is_empty_on_speech}, elapsed={chunk_elapsed:.2f}s, rtf={chunk_rtf:.2f}. Running local sub-chunk recovery...")
                 recovered_transcript, recovery_elapsed = _recover_via_sub_chunking(chunk_info['audio_np'], retry_config, conn_id, sample_rate=16000)
                 retry_count += 1
                 
