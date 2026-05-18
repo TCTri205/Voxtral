@@ -30,10 +30,11 @@ vad_utils = None
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
-VAD_PADDING_MS = 300  # Tightened from 400ms to reduce trailing silence hallucinations
+VAD_PADDING_MS = 1500  # Relaxed to 1500ms to completely prevent trailing conversational voice cutoffs
 
 # Silero VAD configuration (optimized for Japanese business conversations)
 VAD_THRESHOLD = 0.45  # Optimized to safely capture quiet/conversational telephony speech
+VAD_CHUNK_SKIP_THRESHOLD = 0.20  # Highly sensitive threshold for chunk-level skip checks to avoid false negatives
 VAD_MIN_SPEECH_DURATION_MS = 400
 VAD_MIN_SILENCE_DURATION_MS = 100
 
@@ -57,7 +58,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-18.v12"
+_SERVER_VERSION = "2026-05-18.v13"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -286,80 +287,95 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
                              max_chunk_sec: float = CHUNK_LIMIT_SEC, 
                              padding_ms: int = VAD_CHUNK_PADDING_MS) -> list:
     """
-    Partition 100% of the audio timeline into gapless chunks <= max_chunk_sec,
-    splitting exactly in the middle of silence gaps between speech segments.
+    Partition 100% of the audio timeline into gapless chunks <= max_chunk_sec.
+    Splits at candidate silent points between speech segments when possible,
+    and uses mathematically correct overlapping sub-chunks for long segments,
+    ensuring no gaps and no ultra-short chunks (< 5.0s).
     """
-    if not speech_timestamps:
-        return []
-        
     total_samples = len(audio_np)
     max_chunk_samples = int(max_chunk_sec * sample_rate)
-    
+    min_chunk_sec = 5.0
+    min_chunk_samples = int(min_chunk_sec * sample_rate)
+    overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
+
     # 1. Generate split points in the middle of silence gaps between speech segments
-    splits = [0]
-    for i in range(len(speech_timestamps) - 1):
-        gap_mid = (speech_timestamps[i]['end'] + speech_timestamps[i+1]['start']) // 2
-        splits.append(gap_mid)
-    splits.append(total_samples)
-    
-    # Each segment i is contained in [splits[i], splits[i+1]]
-    # 2. Group these candidate chunks to form larger chunks up to max_chunk_sec
+    candidate_splits = [0]
+    if speech_timestamps:
+        for i in range(len(speech_timestamps) - 1):
+            gap_mid = (speech_timestamps[i]['end'] + speech_timestamps[i+1]['start']) // 2
+            candidate_splits.append(gap_mid)
+    candidate_splits.append(total_samples)
+    candidate_splits = sorted(list(set(candidate_splits)))
+
     chunks = []
     current_start = 0
-    current_end = splits[1]
-    segments_in_chunk = 1
-    
-    def append_chunk(start_idx, end_idx, seg_count):
-        chunk_audio = audio_np[start_idx:end_idx]
-        if len(chunk_audio) > max_chunk_samples:
-            # Split evenly with overlap
-            chunk_duration = len(chunk_audio) / sample_rate
-            overlap_sec = CHUNK_OVERLAP_SEC
-            n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
+
+    while current_start < total_samples:
+        remaining_samples = total_samples - current_start
+        if remaining_samples <= max_chunk_samples:
+            # Last chunk fits within limit
+            chunk_start = current_start
+            if remaining_samples < min_chunk_samples:
+                # If too short, extend backward to max_chunk_samples to ensure robust context/decoding
+                chunk_start = max(0, total_samples - max_chunk_samples)
             
-            effective_duration = chunk_duration - overlap_sec
-            step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
-            step_samples = int(step * sample_rate)
-            
-            for idx in range(n_chunks):
-                sub_pos = int(idx * step_samples)
-                sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
-                sub_audio = chunk_audio[sub_pos:sub_end]
-                
-                chunks.append({
-                    "audio_np": sub_audio,
-                    "start_sec": (start_idx + sub_pos) / sample_rate,
-                    "end_sec": (start_idx + sub_end) / sample_rate,
-                    "segments_count": seg_count if idx == 0 else 0,
-                    "is_sub_chunk": True,
-                })
-        else:
+            chunk_audio = audio_np[chunk_start:total_samples]
             chunks.append({
                 "audio_np": chunk_audio,
-                "start_sec": start_idx / sample_rate,
-                "end_sec": end_idx / sample_rate,
-                "segments_count": seg_count,
+                "start_sec": chunk_start / sample_rate,
+                "end_sec": total_samples / sample_rate,
+                "segments_count": 0,
                 "is_sub_chunk": False,
             })
-            
-    for i in range(1, len(speech_timestamps)):
-        next_split = splits[i+1]
-        potential_size = next_split - current_start
-        
-        if potential_size <= max_chunk_samples:
-            current_end = next_split
-            segments_in_chunk += 1
+            break
+
+        # Search for candidate split points in [current_start + min_chunk_samples, current_start + max_chunk_samples]
+        valid_splits = [s for s in candidate_splits if current_start + min_chunk_samples <= s <= current_start + max_chunk_samples]
+
+        if valid_splits:
+            # Pick the largest split point in range
+            split_point = max(valid_splits)
+            chunk_audio = audio_np[current_start:split_point]
+            chunks.append({
+                "audio_np": chunk_audio,
+                "start_sec": current_start / sample_rate,
+                "end_sec": split_point / sample_rate,
+                "segments_count": 0,
+                "is_sub_chunk": False,
+            })
+            current_start = split_point
         else:
-            # Finalize current chunk [current_start, current_end]
-            append_chunk(current_start, current_end, segments_in_chunk)
+            # No valid split point in range. Find the first split point greater than current_start + max_chunk_samples
+            next_splits = [s for s in candidate_splits if s > current_start + max_chunk_samples]
+            if next_splits:
+                next_split_point = min(next_splits)
+            else:
+                next_split_point = total_samples
+
+            # Split [current_start, next_split_point] into overlapping sub-chunks of max_chunk_samples size
+            segment_duration = next_split_point - current_start
+            n_chunks = math.ceil((segment_duration - overlap_samples) / (max_chunk_samples - overlap_samples))
+            n_chunks = max(2, n_chunks)
+
+            # Mathematically exact step size calculation
+            step = (segment_duration - max_chunk_samples) / (n_chunks - 1)
             
-            # Start new chunk
-            current_start = current_end
-            current_end = next_split
-            segments_in_chunk = 1
+            for idx in range(n_chunks):
+                sub_pos = int(idx * step)
+                sub_start = current_start + sub_pos
+                sub_end = min(sub_start + max_chunk_samples, next_split_point)
+                
+                sub_audio = audio_np[sub_start:sub_end]
+                chunks.append({
+                    "audio_np": sub_audio,
+                    "start_sec": sub_start / sample_rate,
+                    "end_sec": sub_end / sample_rate,
+                    "segments_count": 0,
+                    "is_sub_chunk": True,
+                })
             
-    # Finalize the last chunk
-    append_chunk(current_start, current_end, segments_in_chunk)
+            current_start = next_split_point
+
     return chunks
 
 
@@ -900,7 +916,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 chunk_tensor, 
                 vad_model, 
                 sampling_rate=16000,
-                threshold=VAD_THRESHOLD,
+                threshold=VAD_CHUNK_SKIP_THRESHOLD,
                 min_speech_duration_ms=150, # Very sensitive to ensure we don't skip actual speech
                 min_silence_duration_ms=100,
             )
