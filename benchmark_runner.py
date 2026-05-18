@@ -209,6 +209,11 @@ def main():
 def aggregate_stats(run_dirs, timestamp, engine):
     all_runs_metrics = []
     
+    worst_file_cer = 0.0
+    worst_file_name = "N/A"
+    high_severity_count = 0
+    empty_on_speech_count = 0
+    
     for run_dir in run_dirs:
         results_path = Path(run_dir) / "results.json"
         if not results_path.exists(): continue
@@ -220,32 +225,81 @@ def aggregate_stats(run_dirs, timestamp, engine):
             
         success_results = [r for r in data if r.get("status") == "success"]
         if not success_results: continue
+        
+        # Check LLM evaluation summary for high-severity hallucinations
+        llm_summary_path = Path(run_dir) / "llm_eval_summary.json"
+        has_llm_summary = False
+        if llm_summary_path.exists():
+            try:
+                with open(llm_summary_path, "r", encoding="utf-8") as f:
+                    llm_summary = json.load(f)
+                    high_severity_count += llm_summary.get("severity_distribution", {}).get("high", 0)
+                    has_llm_summary = True
+            except Exception as e:
+                print(f"Warning: Could not read LLM summary {llm_summary_path}: {e}")
             
         avg_total_rtf = sum(r.get('total_rtf', 0) for r in success_results) / len(success_results)
         avg_inf_rtf = sum(r.get('inference_rtf', 0) for r in success_results) / len(success_results)
         
-        total_cer = 0
-        cer_count = 0
-        for r in success_results:
-            fname = r.get("file", "").lower()
-            # Exclude silence/noise files from CER average
-            if any(kw in fname for kw in ["silence", "noise", "stochastic"]):
-                continue
-
-            cer_str = r.get("cer", "N/A")
-            if isinstance(cer_str, str) and cer_str.endswith("%"):
-                try:
-                    total_cer += float(cer_str.strip("%")) / 100
-                    cer_count += 1
-                except: pass
+        total_cer_all = 0
+        cer_all_count = 0
+        total_cer_speech = 0
+        cer_speech_count = 0
         
-        avg_cer = total_cer / cer_count if cer_count > 0 else None
+        for r in success_results:
+            fname = r.get("file", "")
+            is_silence = any(kw in fname.lower() for kw in ["silence", "noise", "stochastic"])
+            
+            # Check empty-on-speech
+            cer_str = r.get("cer", "N/A")
+            if "empty" in str(cer_str).lower():
+                empty_on_speech_count += 1
+            
+            # All files CER
+            cer_all_str = r.get("cer_all_files", "N/A")
+            if cer_all_str == "N/A":
+                cer_all_str = r.get("cer", "N/A")
+                
+            if isinstance(cer_all_str, str) and "%" in cer_all_str:
+                try:
+                    val = float(cer_all_str.split("%")[0].strip()) / 100
+                    total_cer_all += val
+                    cer_all_count += 1
+                except: pass
+                
+            # Speech only CER
+            cer_speech_str = r.get("cer_speech_only", "N/A")
+            if cer_speech_str == "N/A" and not is_silence:
+                cer_speech_str = r.get("cer", "N/A")
+                
+            if isinstance(cer_speech_str, str) and "%" in cer_speech_str:
+                try:
+                    val = float(cer_speech_str.split("%")[0].strip()) / 100
+                    total_cer_speech += val
+                    cer_speech_count += 1
+                    
+                    # Track worst speech-only file
+                    if val > worst_file_cer:
+                        worst_file_cer = val
+                        worst_file_name = fname
+                except: pass
+                
+            # Track high-severity hallucinations/issues (fallback if no LLM summary exists)
+            if not has_llm_summary:
+                vad_res = r.get("vad_result", {})
+                if vad_res.get("hallucination_severity") == "high":
+                    high_severity_count += 1
+
+        avg_cer_all = total_cer_all / cer_all_count if cer_all_count > 0 else None
+        avg_cer_speech = total_cer_speech / cer_speech_count if cer_speech_count > 0 else None
         
         all_runs_metrics.append({
             "dir": run_dir,
             "avg_total_rtf": avg_total_rtf,
             "avg_inf_rtf": avg_inf_rtf,
-            "avg_cer": avg_cer
+            "avg_cer_all_files": avg_cer_all,
+            "avg_cer_speech_only": avg_cer_speech,
+            "avg_cer": avg_cer_speech # For backwards compatibility
         })
 
     if not all_runs_metrics:
@@ -257,14 +311,49 @@ def aggregate_stats(run_dirs, timestamp, engine):
     f_total_rtf = sum(m["avg_total_rtf"] for m in all_runs_metrics) / count
     f_inf_rtf = sum(m["avg_inf_rtf"] for m in all_runs_metrics) / count
     
-    cers = [m["avg_cer"] for m in all_runs_metrics if m["avg_cer"] is not None]
-    f_cer = (sum(cers) / len(cers)) if cers else None
+    cers_all = [m["avg_cer_all_files"] for m in all_runs_metrics if m["avg_cer_all_files"] is not None]
+    cers_speech = [m["avg_cer_speech_only"] for m in all_runs_metrics if m["avg_cer_speech_only"] is not None]
+    f_cer_all = (sum(cers_all) / len(cers_all)) if cers_all else None
+    f_cer_speech = (sum(cers_speech) / len(cers_speech)) if cers_speech else None
 
     print(f"Total Runs Aggregated: {count}")
     print(f"Average Total RTF:     {f_total_rtf:.4f}")
     print(f"Average Inference RTF: {f_inf_rtf:.4f}")
-    if f_cer is not None:
-        print(f"Average CER:           {f_cer*100:.2f}%")
+    if f_cer_all is not None:
+        print(f"Average CER (All Files - Silence/Noise Included): {f_cer_all*100:.2f}%")
+    if f_cer_speech is not None:
+        print(f"Average CER (Speech Only - Silence/Noise Excluded): {f_cer_speech*100:.2f}%")
+
+    # Multi-gate Acceptance Verification
+    SPEECH_CER_LIMIT = 0.06       # 6.0%
+    WORST_FILE_CER_LIMIT = 0.15   # 15.0%
+    HIGH_SEVERITY_LIMIT = 0
+    EMPTY_ON_SPEECH_LIMIT = 0
+    
+    passed_speech_cer = f_cer_speech <= SPEECH_CER_LIMIT if f_cer_speech is not None else True
+    passed_worst_cer = worst_file_cer <= WORST_FILE_CER_LIMIT
+    passed_high_sev = high_severity_count <= HIGH_SEVERITY_LIMIT
+    passed_empty_speech = empty_on_speech_count <= EMPTY_ON_SPEECH_LIMIT
+    
+    benchmark_passed = passed_speech_cer and passed_worst_cer and passed_high_sev and passed_empty_speech
+
+    print("\n" + "=" * 60)
+    print(" BENCHMARK ACCEPTANCE VERDICT ".center(60, "="))
+    print("=" * 60)
+    status_str = lambda ok: "PASS" if ok else "FAIL"
+    if f_cer_speech is not None:
+        print(f" [GATE] Speech-only Avg CER   : {f_cer_speech*100:.2f}% (Limit: <= {SPEECH_CER_LIMIT*100:.1f}%) -> {status_str(passed_speech_cer)}")
+    else:
+        print(" [GATE] Speech-only Avg CER   : N/A")
+    print(f" [GATE] Worst-file CER        : {worst_file_cer*100:.2f}% ({worst_file_name}) (Limit: <= {WORST_FILE_CER_LIMIT*100:.1f}%) -> {status_str(passed_worst_cer)}")
+    print(f" [GATE] High-severity Issues  : {high_severity_count} (Limit: == {HIGH_SEVERITY_LIMIT}) -> {status_str(passed_high_sev)}")
+    print(f" [GATE] Empty-on-speech Files : {empty_on_speech_count} (Limit: == {EMPTY_ON_SPEECH_LIMIT}) -> {status_str(passed_empty_speech)}")
+    print("-" * 60)
+    if benchmark_passed:
+        print(" VERDICT: PASSED ".center(60, " "))
+    else:
+        print(" VERDICT: REJECTED (GATES FAILED) ".center(60, " "))
+    print("=" * 60)
 
     # Save summary
     root = "benchmarks_javis" if engine == "javis" else "benchmarks"
@@ -276,12 +365,20 @@ def aggregate_stats(run_dirs, timestamp, engine):
         "engine": engine,
         "timestamp_start": timestamp,
         "timestamp_end": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "runs_passed": len(run_dirs),
+        "runs_input": len(run_dirs),
         "runs_aggregated": count,
         "averages": {
             "total_rtf": f_total_rtf,
             "inference_rtf": f_inf_rtf,
-            "cer_percentage": (f_cer*100) if f_cer is not None else None
+            "cer_speech_only_percentage": (f_cer_speech*100) if f_cer_speech is not None else None,
+            "cer_all_files_percentage": (f_cer_all*100) if f_cer_all is not None else None,
+            "cer_percentage": (f_cer_speech*100) if f_cer_speech is not None else None, # Legacy
+            "worst_file_cer_percentage": worst_file_cer * 100, # Legacy
+            "worst_cer_speech_only_file": worst_file_name,
+            "worst_cer_speech_only_value": worst_file_cer * 100,
+            "high_severity_hallucinations": high_severity_count,
+            "empty_on_speech_files": empty_on_speech_count,
+            "acceptance_verdict": "PASSED" if benchmark_passed else "REJECTED"
         },
         "details": all_runs_metrics
     }

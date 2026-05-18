@@ -5,11 +5,12 @@ from typing import List, Dict, Any
 from .schema import EvaluationCandidate, EvaluationResult
 
 def parse_cer(cer_str: str | None) -> float | None:
-    """Parses CER string like '65.49%' to float 0.6549."""
+    """Parses CER string like '65.49%' or '100.00% (Empty)' to float."""
     if not cer_str or cer_str == "N/A" or cer_str.startswith("N/A"):
         return None
     try:
-        val = float(cer_str.replace("%", "").strip())
+        clean_str = cer_str.replace("%", "").replace("(Empty)", "").strip()
+        val = float(clean_str)
         return val / 100.0
     except ValueError:
         return None
@@ -49,6 +50,7 @@ def apply_heuristics(
                 res.reasoning += " (High CER heuristic override)"
     return results
 
+
 def export_csv(results: List[EvaluationResult], output_path: str):
     """Exports results to CSV."""
     if not results:
@@ -71,27 +73,54 @@ def export_summary_json(results: List[EvaluationResult], run_dir: str, model_use
     total = len(results)
     hallucinated = sum(1 for r in results if r.has_hallucination)
     manual_review = sum(1 for r in results if r.review_status == "manual_review")
-    empty_on_speech_count = sum(1 for r in results if parse_cer(r.existing_cer) is None and r.existing_cer == "N/A (Empty)")
+    empty_on_speech_count = sum(1 for r in results if r.existing_cer and "Empty" in r.existing_cer)
     
     error_dist = {}
     severity_dist = {}
+    
     total_cer = 0.0
     cer_count = 0
     total_rtf = 0.0
     rtf_count = 0
     
+    # New standardized metrics
+    cer_all_list = []
+    cer_speech_only_list = []
+    hallucinated_all_count = 0
+    hallucinated_speech_only_count = 0
+    total_speech_only_count = 0
+    
     for r in results:
         error_dist[r.primary_error] = error_dist.get(r.primary_error, 0) + 1
         severity_dist[r.severity] = severity_dist.get(r.severity, 0) + 1
+        
+        is_silence = any(kw in r.filename.lower() for kw in ["silence", "noise", "stochastic"])
         
         cer = parse_cer(r.existing_cer)
         if cer is not None:
             total_cer += cer
             cer_count += 1
             
+            cer_all_list.append(cer)
+            if not is_silence:
+                cer_speech_only_list.append(cer)
+                
+        if r.has_hallucination:
+            hallucinated_all_count += 1
+            if not is_silence:
+                hallucinated_speech_only_count += 1
+                
+        if not is_silence:
+            total_speech_only_count += 1
+            
         if r.existing_inference_rtf is not None:
             total_rtf += r.existing_inference_rtf
             rtf_count += 1
+
+    avg_cer_all_files = (sum(cer_all_list) / len(cer_all_list)) if cer_all_list else 0.0
+    avg_cer_speech_only = (sum(cer_speech_only_list) / len(cer_speech_only_list)) if cer_speech_only_list else 0.0
+    hallucination_rate_all_files = hallucinated_all_count / total if total > 0 else 0.0
+    hallucination_rate_speech_only = hallucinated_speech_only_count / total_speech_only_count if total_speech_only_count > 0 else 0.0
 
     cer_total_files = candidate_stats.get("cer_total_files", candidate_stats.get("with_gt_plain", total))
     cer_excluded_files = candidate_stats.get("cer_excluded_files", empty_on_speech_count)
@@ -101,6 +130,7 @@ def export_summary_json(results: List[EvaluationResult], run_dir: str, model_use
         "model_used": model_used,
         "total_files": total,
         "evaluated_files": total,
+        "total_speech_only_files": total_speech_only_count,
         "with_gt_timestamped": candidate_stats.get("with_gt_timestamped", 0),
         "without_gt_timestamped": candidate_stats.get("without_gt_timestamped", 0),
         "cer_file_count": cer_count,
@@ -108,12 +138,16 @@ def export_summary_json(results: List[EvaluationResult], run_dir: str, model_use
         "cer_excluded_files": cer_excluded_files,
         "empty_on_speech_count": empty_on_speech_count,
         "deletion_count": empty_on_speech_count,
-        "hallucination_rate": round(hallucinated / total, 4) if total > 0 else 0,
+        "hallucination_rate_all_files": round(hallucination_rate_all_files, 4),
+        "hallucination_rate_speech_only": round(hallucination_rate_speech_only, 4),
+        "hallucination_rate": round(hallucinated / total, 4) if total > 0 else 0, # Legacy
         "manual_review_rate": round(manual_review / total, 4) if total > 0 else 0,
         "error_distribution": error_dist,
         "severity_distribution": severity_dist,
         "existing_metrics": {
-            "avg_cer": f"{(total_cer / cer_count)*100:.2f}%" if cer_count > 0 else "N/A",
+            "avg_cer_all_files": f"{avg_cer_all_files*100:.2f}%" if cer_all_list else "N/A",
+            "avg_cer_speech_only": f"{avg_cer_speech_only*100:.2f}%" if cer_speech_only_list else "N/A",
+            "avg_cer": f"{(total_cer / cer_count)*100:.2f}%" if cer_count > 0 else "N/A", # Legacy
             "avg_inference_rtf": round(total_rtf / rtf_count, 3) if rtf_count > 0 else 0.0,
             "hrs": candidate_stats.get("hrs", 0.0),
         }
@@ -131,7 +165,10 @@ def export_markdown_report(results: List[EvaluationResult], summary_path: str, o
         "# LLM-based Hallucination Evaluation Report\n",
         f"- **Run Directory**: `{summary['run_dir']}`",
         f"- **Model Used**: `{summary['model_used']}`",
-        f"- **Hallucination Rate**: {summary['hallucination_rate']*100:.2f}%",
+        f"- **Hallucination Rate (All Files - Silence/Noise Included)**: {summary.get('hallucination_rate_all_files', 0.0)*100:.2f}%",
+        f"- **Hallucination Rate (Speech Only - Silence/Noise Excluded)**: {summary.get('hallucination_rate_speech_only', 0.0)*100:.2f}%",
+        f"- **Average CER (All Files - Silence/Noise Included)**: {summary['existing_metrics'].get('avg_cer_all_files', 'N/A')}",
+        f"- **Average CER (Speech Only - Silence/Noise Excluded)**: {summary['existing_metrics'].get('avg_cer_speech_only', 'N/A')}",
         f"- **Manual Review Rate**: {summary['manual_review_rate']*100:.2f}%\n",
         "## Statistics\n",
         "### Error Type Distribution",

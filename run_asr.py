@@ -211,6 +211,8 @@ async def transcription_client(
                     vad_config = data.get("vad_config")
                     vad_result = data.get("vad_result")
                     lang_collapse_retries = data.get("lang_collapse_retries")
+                    chunk_telemetry = data.get("chunk_telemetry")
+                    keepalive_peak = data.get("keepalive_peak")
                     
                     if not transcript:
                         # If no deltas were received (e.g. silence), print the final result directly
@@ -261,12 +263,14 @@ async def transcription_client(
                 "total_rtf": round(total_time / duration, 3) if duration > 0 else None,
                 "inference_rtf": round(wait_after_commit / duration, 3) if duration > 0 else None,
                 "keepalive_count": keepalive_count,
+                "keepalive_peak": keepalive_peak,
                 "chunks_sent": chunks_sent,
                 "bytes_sent": bytes_sent,
                 "delay_ms": delay,
                 "vad_config": vad_config,
                 "vad_result": vad_result,
-                "lang_collapse_retries": lang_collapse_retries
+                "lang_collapse_retries": lang_collapse_retries,
+                "chunk_telemetry": chunk_telemetry
             }
 
     except Exception as e:

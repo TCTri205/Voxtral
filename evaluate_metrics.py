@@ -57,6 +57,10 @@ def main():
     empty_on_speech_count = 0
     deletion_count = 0
     
+    # New standardized metrics lists
+    cer_all_list = []
+    cer_speech_only_list = []
+    
     for res in results:
         fname = res["file"]
         status = res.get("status", "success")
@@ -68,7 +72,11 @@ def main():
         
         # Calculate CER if GT exists and ASR was successful
         cer = "N/A"
+        cer_speech_only = "N/A"
+        cer_all_files = "N/A"
         grade = "N/A"
+        
+        is_silence = any(kw in fname.lower() for kw in ["silence", "noise", "stochastic"])
         
         if status != "success":
             grade = "ERROR"
@@ -77,25 +85,32 @@ def main():
             ref = normalize_japanese(gt_data[fname])
             hyp = normalize_japanese(text)
             
-            if not hyp and ref:
-                # Transcript is empty but reference is not - likely a system failure
-                cer = "N/A (Empty)"
+            cer_val = calculate_cer(hyp, ref)
+            
+            # Add to standardized lists
+            cer_all_list.append(cer_val)
+            cer_all_files = f"{cer_val*100:.2f}%"
+            
+            if not is_silence:
+                cer_speech_only_list.append(cer_val)
+                cer_speech_only = f"{cer_val*100:.2f}%"
+            else:
+                cer_speech_only = "N/A (Silence/Noise)"
+            
+            is_empty_on_speech = (not hyp and ref)
+            if is_empty_on_speech:
+                cer = f"{cer_val*100:.2f}% (Empty)"
                 grade = "F (Fail)"
                 cer_excluded_files.append(fname)
                 empty_on_speech_count += 1
                 deletion_count += 1
             else:
-                cer_val = calculate_cer(hyp, ref)
                 cer = f"{cer_val*100:.2f}%"
-                
-                # Exclude silence/noise files from CER average (as per user feedback)
-                is_silence = any(kw in fname.lower() for kw in ["silence", "noise", "stochastic"])
                 if is_silence:
                     cer_silence_files.append(fname)
                 else:
                     total_cer += cer_val
                     cer_file_count += 1
-                
                 grade = classify_quality(hrs if is_silence else 0, cer_val, rtf_inf)
         else:
             # Fallback grade based on RTF and RF
@@ -103,6 +118,8 @@ def main():
 
         res["rf"] = rf
         res["cer"] = cer
+        res["cer_speech_only"] = cer_speech_only
+        res["cer_all_files"] = cer_all_files
         report.append(f"| `{fname}` | {status} | {rtf_inf:.3f} | {rf} | {cer} | {grade} |")
 
     # Update results JSON with new metrics
@@ -110,7 +127,7 @@ def main():
         json.dump(results, f, ensure_ascii=False, indent=4)
     print(f"Updated results saved to: {args.results_json}")
 
-    report.append("\n## CER Accounting")
+    report.append("\n## CER Accounting (Legacy)")
     report.append(f"- CER files included: **{cer_file_count}/{cer_total_files_with_gt}**")
     report.append(f"- CER excluded files: **{len(cer_excluded_files) + len(cer_silence_files)}**")
     report.append(f"  - Empty-on-speech (Fail): {len(cer_excluded_files)}")
@@ -125,7 +142,15 @@ def main():
     if cer_file_count > 0:
         avg_cer = (total_cer / cer_file_count) * 100
         excluded_total = len(cer_excluded_files) + len(cer_silence_files)
-        report.append(f"\n**Average CER (Ground Truth): {avg_cer:.2f}% ({cer_file_count}/{cer_total_files_with_gt} files; {excluded_total} excluded)**")
+        report.append(f"\n**Average CER (Ground Truth - Legacy): {avg_cer:.2f}% ({cer_file_count}/{cer_total_files_with_gt} files; {excluded_total} excluded)**")
+
+    # New Unified Standardized Metrics Section
+    avg_cer_all = (sum(cer_all_list) / len(cer_all_list)) * 100 if cer_all_list else 0.0
+    avg_cer_speech = (sum(cer_speech_only_list) / len(cer_speech_only_list)) * 100 if cer_speech_only_list else 0.0
+    
+    report.append("\n## Standardized Metrics Summary")
+    report.append(f"- **Average CER (All Files - Silence/Noise Included)**: **{avg_cer_all:.2f}%** ({len(cer_all_list)} files)")
+    report.append(f"- **Average CER (Speech Only - Silence/Noise Excluded)**: **{avg_cer_speech:.2f}%** ({len(cer_speech_only_list)} files)")
 
     final_report = "\n".join(report)
     print(final_report)

@@ -76,12 +76,13 @@ def _vad_config_metadata() -> dict:
     }
 
 
-def _inference_result(transcript: str, vad_result: dict | None = None, lang_collapse_retries: list | None = None) -> dict:
+def _inference_result(transcript: str, vad_result: dict | None = None, lang_collapse_retries: list | None = None, chunk_telemetry: list | None = None) -> dict:
     return {
         "transcript": transcript,
         "vad_config": _vad_config_metadata(),
         "vad_result": vad_result or {},
         "lang_collapse_retries": lang_collapse_retries or [],
+        "chunk_telemetry": chunk_telemetry or [],
     }
 
 
@@ -736,6 +737,53 @@ def _merge_chunk_transcripts(transcripts: list, chunk_infos: list | None = None,
     return merged.strip()
 
 
+def _recover_via_sub_chunking(audio_np: np.ndarray, retry_config: dict, conn_id: str, sample_rate: int = 16000) -> tuple:
+    """
+    Recover a chunk by splitting it into smaller sub-chunks, decoding each, and merging them.
+    """
+    duration = len(audio_np) / sample_rate
+    if duration < 1.5:
+        _slog(conn_id, f"[SubChunkRecovery] Chunk too short ({duration:.2f}s) for sub-chunk splitting, skipping recovery.")
+        return "", 0.0
+        
+    _slog(conn_id, f"[SubChunkRecovery] Attempting recovery for chunk of {duration:.2f}s by splitting...")
+    
+    # Split into 2 equal parts with 0.5s overlap
+    half_duration = duration / 2
+    overlap_samples = int(0.5 * sample_rate)
+    half_samples = int(len(audio_np) / 2)
+    
+    # Part 1: from start to half + overlap
+    part1_end = min(len(audio_np), half_samples + overlap_samples)
+    audio_part1 = audio_np[:part1_end]
+    
+    # Part 2: from half - overlap to end
+    part2_start = max(0, half_samples - overlap_samples)
+    audio_part2 = audio_np[part2_start:]
+    
+    _slog(conn_id, f"[SubChunkRecovery] Part 1: {len(audio_part1)/sample_rate:.2f}s, Part 2: {len(audio_part2)/sample_rate:.2f}s")
+    
+    # Decode Part 1
+    text1, elapsed1 = _run_inference_for_chunk(audio_part1, retry_config, conn_id)
+    _slog(conn_id, f"[SubChunkRecovery] Part 1 decoded in {elapsed1:.2f}s: '{text1}'")
+    
+    # Decode Part 2
+    text2, elapsed2 = _run_inference_for_chunk(audio_part2, retry_config, conn_id)
+    _slog(conn_id, f"[SubChunkRecovery] Part 2 decoded in {elapsed2:.2f}s: '{text2}'")
+    
+    # Merge transcripts using overlap characters check
+    # We can treat them as two chunks with overlap
+    transcripts = [(text1, len(audio_part1)/sample_rate), (text2, len(audio_part2)/sample_rate)]
+    chunk_infos = [
+        {"start_sec": 0.0, "end_sec": len(audio_part1)/sample_rate},
+        {"start_sec": part2_start/sample_rate, "end_sec": duration}
+    ]
+    merged_text = _merge_chunk_transcripts(transcripts, chunk_infos)
+    _slog(conn_id, f"[SubChunkRecovery] Recovery complete. Merged text: '{merged_text}'")
+    
+    return merged_text, elapsed1 + elapsed2
+
+
 def load_voxtral_model(model_id: str, load_in_4bit: bool = False):
     global model, processor, model_id_global, vad_model, vad_utils
     model_id_global = model_id
@@ -880,6 +928,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
         _slog(conn_id, f"Inference: Processing {len(chunks)} chunks...")
         transcripts = []
         chunk_infos = []
+        chunk_telemetry = []
         
         for i, chunk_info in enumerate(chunks):
             # Use on_delta only for the first chunk to maintain client UI consistency
@@ -888,8 +937,67 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             chunk_transcript, chunk_elapsed = _run_inference_for_chunk(chunk_info['audio_np'], retry_config, conn_id, current_on_delta)
             
             duration = chunk_info['end_sec'] - chunk_info['start_sec']
+            
+            # Check for errored/suspicious chunks
+            chunk_rtf = chunk_elapsed / duration if duration > 0 else 0.0
+            is_collapsed = _detect_language_collapse(chunk_transcript)["is_collapsed"]
+            
+            # Sub-chunk recovery condition:
+            # 1. Non-empty language collapse (i.e. is_collapsed is True and len(transcript) >= LANG_COLLAPSE_MIN_CHARS)
+            # 2. Or empty transcript but long speech chunk (VAD speech segment longer than 2.0s)
+            # 3. Or absolute decoding latency is high (> 15.0s)
+            # 4. Or RTF is high (> 1.2)
+            has_collapse = is_collapsed and len(chunk_transcript.strip()) >= LANG_COLLAPSE_MIN_CHARS
+            is_empty_on_speech = (len(chunk_transcript.strip()) == 0 and duration > 2.0)
+            exceeds_latency = chunk_elapsed > 15.0
+            exceeds_rtf = chunk_rtf > 1.2
+            
+            needs_recovery = has_collapse or is_empty_on_speech or exceeds_latency or exceeds_rtf
+            retry_count = 0
+            
+            if needs_recovery:
+                _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} ({duration:.2f}s) suspicious: collapse={has_collapse}, empty={is_empty_on_speech}, latency={exceeds_latency}, RTF={exceeds_rtf:.2f}. Running local sub-chunk recovery...")
+                recovered_transcript, recovery_elapsed = _recover_via_sub_chunking(chunk_info['audio_np'], retry_config, conn_id, sample_rate=16000)
+                retry_count += 1
+                
+                # Check if recovered is healthy
+                recovered_collapsed = _detect_language_collapse(recovered_transcript)["is_collapsed"]
+                is_recovered = not recovered_collapsed and len(recovered_transcript.strip()) > 0
+                
+                if is_recovered:
+                    _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} successfully recovered! '{chunk_transcript}' -> '{recovered_transcript}'")
+                    chunk_transcript = recovered_transcript
+                    chunk_elapsed += recovery_elapsed
+                    chunk_rtf = chunk_elapsed / duration if duration > 0 else 0.0
+                    is_collapsed = False
+                else:
+                    _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} sub-chunk recovery failed or also collapsed. Keeping original.")
+                    chunk_elapsed += recovery_elapsed
+                    chunk_rtf = chunk_elapsed / duration if duration > 0 else 0.0
+            
             transcripts.append((chunk_transcript, duration))
             chunk_infos.append(chunk_info)
+            
+            # Record chunk telemetry
+            token_count = len(processor.tokenizer.encode(chunk_transcript)) if (processor and hasattr(processor, 'tokenizer')) else 0
+            telemetry = {
+                "chunk_index": i,
+                "start_sec": float(chunk_info['start_sec']),
+                "end_sec": float(chunk_info['end_sec']),
+                "duration": float(duration),
+                "elapsed": float(chunk_elapsed),
+                "inference_rtf": float(chunk_rtf),
+                "transcript_len": len(chunk_transcript),
+                "tokens_generated": token_count,
+                "retry_count": retry_count,
+                "is_language_collapse": is_collapsed,
+                "keepalive_peak": int(chunk_elapsed // 5),
+            }
+            chunk_telemetry.append(telemetry)
+            
+            # Log high latency or keepalive spikes
+            if chunk_rtf > 1.0 or telemetry["keepalive_peak"] >= 3:
+                _slog(conn_id, f"CHUNK TELEMETRY EXCEEDED LIMITS - Chunk {i+1}: RTF={chunk_rtf:.3f}, Keepalives={telemetry['keepalive_peak']}, Duration={duration:.2f}s, Elapsed={chunk_elapsed:.2f}s")
         
         # ===== Phase 2: Language Collapse Recovery =====
         lang_retries = []
@@ -993,11 +1101,11 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
         
         # Merge transcripts
         transcript = _merge_chunk_transcripts(transcripts, chunk_infos)
-        return transcript, lang_retries
+        return transcript, lang_retries, chunk_telemetry
 
     # Run primary inference (Trial 1)
     t_inf_start = time.time()
-    transcript, lang_collapse_retries = run_inference_with_config(trimmed_audio)
+    transcript, lang_collapse_retries, chunk_telemetry = run_inference_with_config(trimmed_audio)
     
     # =========================================================================
     # PHA 3: HALLUCINATION GUARDRAILS & MULTI-TEMPERATURE RETRY
@@ -1013,7 +1121,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
         retry_temps = [0.2, 0.5]
         for r_temp in retry_temps:
             _slog(conn_id, f"[Guardrail] Severity {best_severity} detected. Attempting retry with temperature={r_temp}...")
-            retry_transcript, _ = run_inference_with_config(trimmed_audio, temp_override=r_temp)
+            retry_transcript, retry_lang_retries, retry_chunk_telemetry = run_inference_with_config(trimmed_audio, temp_override=r_temp)
             retry_guardrail = _check_hallucination_guardrails(retry_transcript, trimmed_duration, conn_id, f"[Retry T={r_temp}] ")
             
             # If retry has lower severity, adopt it
@@ -1022,6 +1130,8 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 best_transcript = retry_transcript
                 best_severity = retry_guardrail["severity"]
                 guardrail_result = retry_guardrail
+                lang_collapse_retries = retry_lang_retries
+                chunk_telemetry = retry_chunk_telemetry
                 if best_severity == "none":
                     break
             else:
@@ -1034,7 +1144,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     vad_result = dict(vad_info)
     vad_result["hallucination_warning"] = guardrail_result["is_suspicious"]
     vad_result["hallucination_severity"] = best_severity
-    return _inference_result(transcript, vad_result, lang_collapse_retries)
+    return _inference_result(transcript, vad_result, lang_collapse_retries, chunk_telemetry)
 
 
 async def run_inference(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> dict:
@@ -1275,6 +1385,9 @@ async def realtime_endpoint(websocket: WebSocket):
                                 if active_futs:
                                     await asyncio.gather(*active_futs, return_exceptions=True)
                             
+                            chunk_telemetry = inference_payload.get("chunk_telemetry", [])
+                            keepalive_peak = max([c.get("keepalive_peak", 0) for c in chunk_telemetry]) if chunk_telemetry else keepalive_n
+                            
                             await _safe_send_text(
                                 websocket,
                                 json.dumps(
@@ -1284,6 +1397,8 @@ async def realtime_endpoint(websocket: WebSocket):
                                         "vad_config": inference_payload.get("vad_config"),
                                         "vad_result": inference_payload.get("vad_result"),
                                         "lang_collapse_retries": inference_payload.get("lang_collapse_retries"),
+                                        "chunk_telemetry": chunk_telemetry,
+                                        "keepalive_peak": keepalive_peak,
                                     }
                                 ),
                                 conn_id
