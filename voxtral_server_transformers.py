@@ -33,14 +33,14 @@ CHUNK_OVERLAP_SEC = 1.0
 VAD_PADDING_MS = 300  # Khôi phục về v11 (300ms để giảm thiểu ảo giác im lặng)
 
 # Silero VAD configuration (optimized for Japanese business conversations)
-VAD_THRESHOLD = 0.70  # Khôi phục về v11 (0.70 để lọc nhiễu telephony bẩn)
-VAD_CHUNK_SKIP_THRESHOLD = 0.20  # Highly sensitive threshold for chunk-level skip checks to avoid false negatives
+VAD_THRESHOLD = 0.70  # Giữ nguyên để chặn tạp âm telephony bẩn
+VAD_CHUNK_SKIP_THRESHOLD = 0.20
 VAD_MIN_SPEECH_DURATION_MS = 400
 VAD_MIN_SILENCE_DURATION_MS = 100
 
-# Online VAD-Aware Chunking config
-VAD_SEGMENT_SILENCE_MS = 700   # Giữ nguyên mức tối ưu 700ms của v11
-VAD_CHUNK_PADDING_MS = 200
+# Tinh chỉnh khoảng dừng phân tách chunk và gọt đuôi im lặng
+VAD_SEGMENT_SILENCE_MS = 600   # Giảm từ 700ms xuống 600ms giúp phân đoạn nhạy bén hơn
+VAD_CHUNK_PADDING_MS = 150     # Giảm từ 200ms xuống 150ms để triệt tiêu trailing silence
 
 # Hallucination guardrails config
 ENABLE_RETRY_HALLUCINATION = True
@@ -147,16 +147,31 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     except Exception as e:
         _slog(conn_id, f"Preprocessing: HPF failed: {e}")
 
-    # 3. RMS Calculation
-    rms = np.sqrt(np.mean(audio_np**2))
+    # 3. Khởi tạo Frame-level Soft Noise Gate (-45dBFS threshold)
+    noise_gate_threshold = 10**(-45/20)  # ~0.00562
+    frame_size = int(sample_rate * 0.01)  # 10ms frame size
+    n_frames = len(audio_np) // frame_size
     
-    # 4. Soft Noise Gate (-50dBFS threshold)
-    noise_gate_threshold = 10**(-50/20) # ~0.00316
-    if rms < noise_gate_threshold:
-        # Near silent: attenuate further to help VAD ignore it
-        audio_np = audio_np * 0.1
-        _slog(conn_id, f"Preprocessing: Noise gate active (RMS={20*np.log10(rms+1e-9):.1f}dBFS)")
-        return audio_np
+    if n_frames > 0:
+        # Chia mảng thành các khung để tính RMS song song
+        frames = audio_np[:n_frames*frame_size].reshape(n_frames, frame_size)
+        frame_rms = np.sqrt(np.mean(frames**2, axis=1))
+        
+        # Tạo mặt nạ lọc các khung có năng lượng dưới ngưỡng nhiễu
+        low_energy_mask = frame_rms < noise_gate_threshold
+        gate_active_count = np.sum(low_energy_mask)
+        
+        if gate_active_count > 0:
+            # Áp dụng nhân hệ số 0.1 mượt mà dạng vector cho các khung nhiễu
+            multipliers = np.ones(n_frames, dtype=np.float32)
+            multipliers[low_energy_mask] = 0.1
+            multipliers_expanded = np.repeat(multipliers, frame_size)
+            audio_np[:n_frames*frame_size] *= multipliers_expanded
+            
+            _slog(conn_id, f"Preprocessing: Frame Noise Gate active on {gate_active_count}/{n_frames} frames ({100*gate_active_count/n_frames:.1f}%)")
+
+    # Tính toán lại RMS tổng thể sau khi đã xử lý cổng nhiễu để phục vụ chuẩn hóa RMS
+    rms = np.sqrt(np.mean(audio_np**2))
 
     # 5. RMS Normalization (Target -20dBFS = 0.1)
     target_rms = 10**(-20/20) # 0.1
@@ -453,7 +468,7 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     # Setup streamer and stopping criteria
     streamer = TextIteratorStreamer(processor.tokenizer, skip_special_tokens=True, skip_prompt=True)
     stopping_criteria = StoppingCriteriaList([
-        RepetitionStoppingCriteria(processor.tokenizer, threshold=3)
+        RepetitionStoppingCriteria(processor.tokenizer, threshold=5)
     ])
 
     generation_kwargs = dict(
