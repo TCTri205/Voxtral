@@ -39,8 +39,8 @@ VAD_MIN_SPEECH_DURATION_MS = 400
 VAD_MIN_SILENCE_DURATION_MS = 100
 
 # Tinh chỉnh khoảng dừng phân tách chunk và gọt đuôi im lặng
-VAD_SEGMENT_SILENCE_MS = 600   # Giảm từ 700ms xuống 600ms giúp phân đoạn nhạy bén hơn
-VAD_CHUNK_PADDING_MS = 150     # Giảm từ 200ms xuống 150ms để triệt tiêu trailing silence
+VAD_SEGMENT_SILENCE_MS = 700   # Khôi phục về v11/v15-V2 (700ms) để giữ tính liên tục của câu thoại
+VAD_CHUNK_PADDING_MS = 200     # Khôi phục về v11/v15-V2 (200ms) để đảm bảo ngữ cảnh cho Whisper
 
 # Hallucination guardrails config
 ENABLE_RETRY_HALLUCINATION = True
@@ -147,31 +147,16 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     except Exception as e:
         _slog(conn_id, f"Preprocessing: HPF failed: {e}")
 
-    # 3. Khởi tạo Frame-level Soft Noise Gate (-45dBFS threshold)
-    noise_gate_threshold = 10**(-45/20)  # ~0.00562
-    frame_size = int(sample_rate * 0.01)  # 10ms frame size
-    n_frames = len(audio_np) // frame_size
-    
-    if n_frames > 0:
-        # Chia mảng thành các khung để tính RMS song song
-        frames = audio_np[:n_frames*frame_size].reshape(n_frames, frame_size)
-        frame_rms = np.sqrt(np.mean(frames**2, axis=1))
-        
-        # Tạo mặt nạ lọc các khung có năng lượng dưới ngưỡng nhiễu
-        low_energy_mask = frame_rms < noise_gate_threshold
-        gate_active_count = np.sum(low_energy_mask)
-        
-        if gate_active_count > 0:
-            # Áp dụng nhân hệ số 0.1 mượt mà dạng vector cho các khung nhiễu
-            multipliers = np.ones(n_frames, dtype=np.float32)
-            multipliers[low_energy_mask] = 0.1
-            multipliers_expanded = np.repeat(multipliers, frame_size)
-            audio_np[:n_frames*frame_size] *= multipliers_expanded
-            
-            _slog(conn_id, f"Preprocessing: Frame Noise Gate active on {gate_active_count}/{n_frames} frames ({100*gate_active_count/n_frames:.1f}%)")
-
-    # Tính toán lại RMS tổng thể sau khi đã xử lý cổng nhiễu để phục vụ chuẩn hóa RMS
+    # 3. RMS Calculation
     rms = np.sqrt(np.mean(audio_np**2))
+    
+    # 4. Soft Noise Gate (-50dBFS threshold)
+    noise_gate_threshold = 10**(-50/20) # ~0.00316
+    if rms < noise_gate_threshold:
+        # Near silent: attenuate further to help VAD ignore it
+        audio_np = audio_np * 0.1
+        _slog(conn_id, f"Preprocessing: Noise gate active (RMS={20*np.log10(rms+1e-9):.1f}dBFS)")
+        return audio_np
 
     # 5. RMS Normalization (Target -20dBFS = 0.1)
     target_rms = 10**(-20/20) # 0.1
@@ -990,8 +975,8 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 else:
                     _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} sub-chunk recovery failed or also collapsed. Keeping original.")
                     if has_collapse:
-                        _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} was language collapse and recovery failed. Discarding to empty string.")
-                        chunk_transcript = ""
+                        _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} was language collapse and recovery failed. Running repetition truncation fallback.")
+                        chunk_transcript = _truncate_repetitions(chunk_transcript)
                         is_collapsed = False
                     chunk_elapsed += recovery_elapsed
                     chunk_rtf = chunk_elapsed / duration if duration > 0 else 0.0
@@ -1040,10 +1025,10 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 for group in groups:
                     anchor_idx = _find_healthy_neighbor(group, len(chunks), collapsed_indices)
                     if anchor_idx is None:
-                        _slog(conn_id, f"[LangCollapse] No healthy anchor for group {group}, discarding to empty string")
-                        lang_retries.append({"group": group, "status": "no_anchor_discarded"})
+                        _slog(conn_id, f"[LangCollapse] No healthy anchor for group {group}, running repetition truncation fallback")
+                        lang_retries.append({"group": group, "status": "no_anchor_truncated"})
                         for idx in group:
-                            transcripts[idx] = ("", transcripts[idx][1])
+                            transcripts[idx] = (_truncate_repetitions(transcripts[idx][0]), transcripts[idx][1])
                         continue
                     
                     # Build retry audio: context prefix (5s) + collapsed chunk(s)
@@ -1114,19 +1099,19 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                                     _slog(conn_id, f"[LangCollapse] Group {group} fixed via 500ms trim fallback")
                                 else:
                                     lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_fallback"})
-                                    _slog(conn_id, f"[LangCollapse] Group {group} fallback FAILED, discarding to empty string")
+                                    _slog(conn_id, f"[LangCollapse] Group {group} fallback FAILED, running repetition truncation fallback")
                                     for idx in group:
-                                        transcripts[idx] = ("", transcripts[idx][1])
+                                        transcripts[idx] = (_truncate_repetitions(transcripts[idx][0]), transcripts[idx][1])
                             else:
                                 lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_too_short"})
-                                _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback, discarding to empty string")
+                                _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback, running repetition truncation fallback")
                                 for idx in group:
-                                    transcripts[idx] = ("", transcripts[idx][1])
+                                    transcripts[idx] = (_truncate_repetitions(transcripts[idx][0]), transcripts[idx][1])
                         else:
                             lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
-                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['jp_ratio']}), discarding to empty string")
+                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['jp_ratio']}), running repetition truncation fallback")
                             for idx in group:
-                                transcripts[idx] = ("", transcripts[idx][1])
+                                transcripts[idx] = (_truncate_repetitions(transcripts[idx][0]), transcripts[idx][1])
         
         # Merge transcripts
         transcript = _merge_chunk_transcripts(transcripts, chunk_infos)
