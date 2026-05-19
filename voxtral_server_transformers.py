@@ -30,20 +30,19 @@ vad_utils = None
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
-VAD_PADDING_MS = 1500  # Relaxed to 1500ms to completely prevent trailing conversational voice cutoffs
+VAD_PADDING_MS = 300  # Khôi phục về v11 (300ms để giảm thiểu ảo giác im lặng)
 
 # Silero VAD configuration (optimized for Japanese business conversations)
-VAD_THRESHOLD = 0.45  # Optimized to safely capture quiet/conversational telephony speech
+VAD_THRESHOLD = 0.70  # Khôi phục về v11 (0.70 để lọc nhiễu telephony bẩn)
 VAD_CHUNK_SKIP_THRESHOLD = 0.20  # Highly sensitive threshold for chunk-level skip checks to avoid false negatives
 VAD_MIN_SPEECH_DURATION_MS = 400
 VAD_MIN_SILENCE_DURATION_MS = 100
 
 # Online VAD-Aware Chunking config
-VAD_SEGMENT_SILENCE_MS = 700   # Reverted to v9 value – 1000ms created chunks too large, hitting timeout wall
-VAD_CHUNK_PADDING_MS = 200     # Reverted to v2 padding to avoid capturing noise
+VAD_SEGMENT_SILENCE_MS = 700   # Giữ nguyên mức tối ưu 700ms của v11
+VAD_CHUNK_PADDING_MS = 200
 
 # Hallucination guardrails config
-# Enabled for v7 to tackle tail-end repetitions
 ENABLE_RETRY_HALLUCINATION = True
 RETRY_TEMPERATURE = 0.2
 
@@ -58,7 +57,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-18.v14"
+_SERVER_VERSION = "2026-05-18.v15"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -287,105 +286,101 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
                              max_chunk_sec: float = CHUNK_LIMIT_SEC, 
                              padding_ms: int = VAD_CHUNK_PADDING_MS) -> list:
     """
-    Creates chunks targeting ONLY the regions where speech was detected.
-    Expands each speech segment by padding_ms, merges overlapping regions,
-    ensures regions are at least 3.0s to preserve context,
-    and splits long regions into overlapping sub-chunks.
+    Group VAD speech segments into chunks <= max_chunk_sec. (Phiên bản v11 ổn định)
     """
     if not speech_timestamps:
         return []
-
-    total_samples = len(audio_np)
-    pad_samples = int((padding_ms / 1000.0) * sample_rate)
-    min_chunk_samples = int(3.0 * sample_rate)
-    max_chunk_samples = int(max_chunk_sec * sample_rate)
-    overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
-
-    # 1. Expand and merge speech segments into contiguous regions
-    regions = []
-    for ts in speech_timestamps:
-        start = max(0, ts['start'] - pad_samples)
-        end = min(total_samples, ts['end'] + pad_samples)
         
-        if not regions:
-            regions.append([start, end])
-        else:
-            last_region = regions[-1]
-            if start <= last_region[1]:
-                # Overlap or touching, merge them
-                last_region[1] = max(last_region[1], end)
-            else:
-                regions.append([start, end])
-
-    # 2. Enforce minimum chunk size (3.0s) for each region to give Whisper context
-    for r in regions:
-        duration_samples = r[1] - r[0]
-        if duration_samples < min_chunk_samples:
-            deficit = min_chunk_samples - duration_samples
-            # Expand evenly
-            expand_left = deficit // 2
-            expand_right = deficit - expand_left
-            
-            new_start = r[0] - expand_left
-            new_end = r[1] + expand_right
-            
-            # Clamp and shift if hitting boundaries
-            if new_start < 0:
-                new_end += (0 - new_start)
-                new_start = 0
-            if new_end > total_samples:
-                new_start -= (new_end - total_samples)
-                new_start = max(0, new_start)
-                new_end = total_samples
-                
-            r[0] = new_start
-            r[1] = new_end
-
-    # 3. Merge again in case expanding for min size caused overlap
-    merged_regions = []
-    for r in regions:
-        if not merged_regions:
-            merged_regions.append(r)
-        else:
-            last_region = merged_regions[-1]
-            if r[0] <= last_region[1]:
-                last_region[1] = max(last_region[1], r[1])
-            else:
-                merged_regions.append(r)
-
-    # 4. Generate final chunks from the regions
     chunks = []
-    for r in merged_regions:
-        r_start, r_end = r[0], r[1]
-        region_duration = r_end - r_start
+    current_chunk_segments = [speech_timestamps[0]]
+    current_chunk_start = speech_timestamps[0]['start']
+    current_chunk_end = speech_timestamps[0]['end']
+    
+    padding_samples = int((padding_ms / 1000.0) * sample_rate)
+    max_chunk_samples = int(max_chunk_sec * sample_rate)
+    
+    for i in range(1, len(speech_timestamps)):
+        segment = speech_timestamps[i]
         
-        if region_duration <= max_chunk_samples:
-            chunks.append({
-                "audio_np": audio_np[r_start:r_end],
-                "start_sec": r_start / sample_rate,
-                "end_sec": r_end / sample_rate,
-                "segments_count": 0,
-                "is_sub_chunk": False,
-            })
+        potential_chunk_end = segment['end']
+        potential_chunk_size = potential_chunk_end - current_chunk_start
+        
+        if potential_chunk_size <= max_chunk_samples:
+            current_chunk_end = segment['end']
+            current_chunk_segments.append(segment)
         else:
-            # Region is larger than max_chunk_samples, split into overlapping sub-chunks
-            n_chunks = math.ceil((region_duration - overlap_samples) / (max_chunk_samples - overlap_samples))
-            n_chunks = max(2, n_chunks)
-            step = (region_duration - max_chunk_samples) / (n_chunks - 1)
+            start_idx = max(0, current_chunk_start - padding_samples)
+            end_idx = min(len(audio_np), current_chunk_end + padding_samples)
+            chunk_audio = audio_np[start_idx:end_idx]
             
-            for idx in range(n_chunks):
-                sub_pos = int(idx * step)
-                sub_start = r_start + sub_pos
-                sub_end = min(sub_start + max_chunk_samples, r_end)
-                
-                chunks.append({
-                    "audio_np": audio_np[sub_start:sub_end],
-                    "start_sec": sub_start / sample_rate,
-                    "end_sec": sub_end / sample_rate,
-                    "segments_count": 0,
-                    "is_sub_chunk": True,
-                })
+            if len(chunk_audio) > max_chunk_samples:
+                chunk_duration = len(chunk_audio) / sample_rate
+                overlap_sec = CHUNK_OVERLAP_SEC
+                n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
+                effective_duration = chunk_duration - overlap_sec
+                step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
+                step_samples = int(step * sample_rate)
+                overlap_samples = int(overlap_sec * sample_rate)
 
+                for idx in range(n_chunks):
+                    sub_pos = int(idx * step_samples)
+                    sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
+                    sub_audio = chunk_audio[sub_pos:sub_end]
+
+                    chunks.append({
+                        "audio_np": sub_audio,
+                        "start_sec": (start_idx + sub_pos) / sample_rate,
+                        "end_sec": (start_idx + sub_end) / sample_rate,
+                        "segments_count": len(current_chunk_segments) if idx == 0 else 0,
+                        "is_sub_chunk": True,
+                    })
+            else:
+                chunks.append({
+                    "audio_np": chunk_audio,
+                    "start_sec": start_idx / sample_rate,
+                    "end_sec": end_idx / sample_rate,
+                    "segments_count": len(current_chunk_segments),
+                    "is_sub_chunk": False,
+                })
+            
+            current_chunk_start = segment['start']
+            current_chunk_end = segment['end']
+            current_chunk_segments = [segment]
+            
+    # Xử lý chunk cuối cùng
+    start_idx = max(0, current_chunk_start - padding_samples)
+    end_idx = min(len(audio_np), current_chunk_end + padding_samples)
+    chunk_audio = audio_np[start_idx:end_idx]
+    
+    if len(chunk_audio) > max_chunk_samples:
+        chunk_duration = len(chunk_audio) / sample_rate
+        overlap_sec = CHUNK_OVERLAP_SEC
+        n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
+        effective_duration = chunk_duration - overlap_sec
+        step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
+        step_samples = int(step * sample_rate)
+
+        for idx in range(n_chunks):
+            sub_pos = int(idx * step_samples)
+            sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
+            sub_audio = chunk_audio[sub_pos:sub_end]
+
+            chunks.append({
+                "audio_np": sub_audio,
+                "start_sec": (start_idx + sub_pos) / sample_rate,
+                "end_sec": (start_idx + sub_end) / sample_rate,
+                "segments_count": len(current_chunk_segments) if idx == 0 else 0,
+                "is_sub_chunk": True,
+            })
+    else:
+        chunks.append({
+            "audio_np": chunk_audio,
+            "start_sec": start_idx / sample_rate,
+            "end_sec": end_idx / sample_rate,
+            "segments_count": len(current_chunk_segments),
+            "is_sub_chunk": False,
+        })
+        
     return chunks
 
 
@@ -1120,26 +1115,25 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     best_severity = guardrail_result["severity"]
     severity_order = {"none": 0, "low": 1, "medium": 2, "high": 3}
     
-    # Multi-temperature retry (if suspicious)
+    # Chỉ chạy retry đúng 1 lần tại T=0.2 nếu độ nghiêm trọng >= medium
     if guardrail_result["is_suspicious"] and severity_order[best_severity] >= severity_order["medium"] and ENABLE_RETRY_HALLUCINATION:
-        retry_temps = [0.2, 0.5]
-        for r_temp in retry_temps:
-            _slog(conn_id, f"[Guardrail] Severity {best_severity} detected. Attempting retry with temperature={r_temp}...")
-            retry_transcript, retry_lang_retries, retry_chunk_telemetry = run_inference_with_config(trimmed_audio, temp_override=r_temp)
-            retry_guardrail = _check_hallucination_guardrails(retry_transcript, trimmed_duration, conn_id, f"[Retry T={r_temp}] ")
-            
-            # If retry has lower severity, adopt it
-            if severity_order[retry_guardrail["severity"]] < severity_order[best_severity]:
-                _slog(conn_id, f"[Guardrail] Retry T={r_temp} improved severity: {best_severity} -> {retry_guardrail['severity']}")
-                best_transcript = retry_transcript
-                best_severity = retry_guardrail["severity"]
-                guardrail_result = retry_guardrail
-                lang_collapse_retries = retry_lang_retries
-                chunk_telemetry = retry_chunk_telemetry
-                if best_severity == "none":
-                    break
-            else:
-                _slog(conn_id, f"[Guardrail] Retry T={r_temp} did not improve result (severity={retry_guardrail['severity']})")
+        r_temp = RETRY_TEMPERATURE  # Cố định ở mức 0.2
+        _slog(conn_id, f"[Guardrail] Severity {best_severity} detected. Attempting single retry with temperature={r_temp}...")
+        
+        retry_transcript, retry_lang_retries, retry_chunk_telemetry = run_inference_with_config(trimmed_audio, temp_override=r_temp)
+        retry_guardrail = _check_hallucination_guardrails(retry_transcript, trimmed_duration, conn_id, f"[Retry T={r_temp}] ")
+        
+        # CHỈ áp dụng nếu độ nghiêm trọng của bản retry THẤP HƠN bản gốc
+        if severity_order[retry_guardrail["severity"]] < severity_order[best_severity]:
+            _slog(conn_id, f"[Guardrail] Retry T={r_temp} improved severity: {best_severity} -> {retry_guardrail['severity']}. Adopting retry result.")
+            best_transcript = retry_transcript
+            best_severity = retry_guardrail["severity"]
+            guardrail_result = retry_guardrail
+            lang_collapse_retries = retry_lang_retries
+            chunk_telemetry = retry_chunk_telemetry
+        else:
+            # Nếu tệ hơn hoặc bằng, bắt buộc chọn kết quả gốc chưa thử lại (Strict Rollback)
+            _slog(conn_id, f"[Guardrail] Retry T={r_temp} did NOT improve severity ({best_severity} -> {retry_guardrail['severity']}). Selecting original unretried result.")
 
     transcript = best_transcript
     elapsed = time.time() - t_inf_start
