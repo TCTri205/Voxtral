@@ -1,0 +1,15 @@
+﻿filename,has_hallucination,primary_error,severity,confidence,review_status,existing_cer,existing_rf,existing_inference_rtf,reasoning,evidence_hyp_text,evidence_gt_context
+media_148280_1767762915627.mp3,True,insertion,medium,medium,manual_review,51.36%,0,3.032,"Hypothesis chứa từ 'お茶' không có trong Ground Truth, và có lỗi phát âm 'アセス' thay vì 'アセット'.",お茶になっております,[4.796 - 9.287] SPEAKER 2: お世話になっております。 私バルテスの中岡と申します。
+media_148284_1767766514646 (1).mp3,True,insertion,medium,medium,manual_review,31.15%,0,2.257,"Hypothesis chứa đoạn 'こちらになります。AJテクノロジーズの辻元と申します' không có trong Ground Truth, và có sự khác biệt về tên người và nội dung giữa Hypothesis và Ground Truth",こちらになります。AJテクノロジーズの辻元と申します,[4.768 - 7.396] SPEAKER 2: お世話になります。AJテクノロジーズのツジと申します
+media_148393_1767860211615 (1).mp3,True,insertion,medium,medium,manual_review,64.89%,0,1.796,"Hypothesis chứa từ '伊藤さん' không xuất hiện trong Ground Truth, và có sự thay thế tên người và công ty.",伊藤さんになってます,[3.941 - 7.288] SPEAKER 2: あ、いつもお世話になってます。AJテクノロジーズの山下です。
+media_148394_1767860189485 (1).mp3,True,insertion,medium,medium,manual_review,44.22%,0,2.272,"Hypothesis chứa từ ngữ không có trong Ground Truth, cụ thể là '全然ご意見でしょうか?' và '大丈夫じゃないですか?' không xuất hiện trong đoạn hội thoại tương ứng.",全然ご意見でしょうか?大丈夫じゃないですか。,[9.240 - 10.308] SPEAKER 1: どういったご用件でしょうか?
+media_148414_1767922241264 (1).mp3,True,insertion,medium,medium,manual_review,56.89%,0,5.649,"Hypothesis chứa từ ngữ không có trong Ground Truth, cụ thể là '怪しけんなこやし' không xuất hiện trong bất kỳ đoạn hội thoại nào của Ground Truth.",怪しけんなこやしの,愛知県名古屋市の株式会社アセットジャパン
+media_148439_1767926711644 (1).mp3,True,insertion,medium,medium,manual_review,28.85%,0,2.22,"Hypothesis chứa đoạn 'こんにちは、遠隔のシリカー社の坂本です' không có trong Ground Truth, đây là một dạng insertion.",こんにちは、遠隔のシリカー社の坂本です,
+media_148954_1768789819598 (1).mp3,True,insertion,high,high,manual_review,46.55%,0,2.419,"Hypothesis chứa nội dung không xuất hiện trong Ground Truth, cụ thể là 'A fonte do orçamento é a... Você投稿の方にお電話いただきたい', đây là một đoạn văn bản không liên quan đến cuộc trò chuyện trong Ground Truth.",A fonte do orçamento é a... Você投稿の方にお電話いただきたい,
+media_149291_1769069811005.mp3,False,none,none,low,manual_review,57.34%,0,2.447,"LLM call failed after 3 attempts: 1 validation error for EvaluationResult
+existing_cer
+  Input should be a valid string [type=string_type, input_value=57.34, input_type=float]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_type (High CER heuristic override)",,
+media_149733_1769589919400.mp3,True,insertion,high,high,manual_review,66.56%,0,1.589,"Hypothesis chứa nội dung không xuất hiện trong Ground Truth, cụ thể là '愛車リース話です' không có trong bất kỳ đoạn hội thoại nào của Ground Truth.",愛車リース話です,なし
+silence_60s.wav,False,none,none,high,auto_accept,0.00%,0,0.043,Empty transcript matches explicit empty ground truth.,,
+stochastic_noise_60s.wav,False,none,none,low,auto_accept,0.00%,0,0.043,Empty transcript matches explicit empty ground truth.,,
