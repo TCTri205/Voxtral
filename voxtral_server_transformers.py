@@ -529,9 +529,11 @@ def _detect_ngram_loops(text: str, n_range=(3, 4, 5), threshold=4) -> list:
         "には", "ては", "では", "とは", "から", "より", "まで", "でも",
         # 3-char
         "ります", "います", "えます", "きます", "します", "ません", "でした", "ました",
-        "ください", "しては", "におい", "について", "ありがと",
+        "ください", "しては", "におい", "について", "ありがと", "んです",
         # 4-char
-        "ありがとう", "おります", "いします", "いただき", "お願いし",
+        "ありがとう", "おります", "いします", "いただき", "お願いし", "んですけ", "ございま", "よろしく", "わかりま", "ておりま",
+        # 5-char
+        "んですけど", "ございまし", "いただきま",
     }
 
     loops = []
@@ -600,8 +602,9 @@ def _check_hallucination_guardrails(transcript: str, audio_duration: float, conn
         reasons.append(f"Noise insertion pattern: '{transcript_stripped}'")
         update_severity("high")
 
-    # Check 5: Looping patterns
-    loops = _detect_ngram_loops(transcript_stripped)
+    # Check 5: Looping patterns (scale threshold dynamically for long merged transcripts)
+    dynamic_threshold = max(5, len(transcript_stripped) // 25)
+    loops = _detect_ngram_loops(transcript_stripped, threshold=dynamic_threshold)
     if loops:
         reasons.append(f"Looping detected: {', '.join(loops)}")
         update_severity("high")
@@ -986,6 +989,10 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                     is_collapsed = False
                 else:
                     _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} sub-chunk recovery failed or also collapsed. Keeping original.")
+                    if has_collapse:
+                        _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} was language collapse and recovery failed. Discarding to empty string.")
+                        chunk_transcript = ""
+                        is_collapsed = False
                     chunk_elapsed += recovery_elapsed
                     chunk_rtf = chunk_elapsed / duration if duration > 0 else 0.0
             
@@ -1033,8 +1040,10 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 for group in groups:
                     anchor_idx = _find_healthy_neighbor(group, len(chunks), collapsed_indices)
                     if anchor_idx is None:
-                        _slog(conn_id, f"[LangCollapse] No healthy anchor for group {group}, skipping retry")
-                        lang_retries.append({"group": group, "status": "no_anchor"})
+                        _slog(conn_id, f"[LangCollapse] No healthy anchor for group {group}, discarding to empty string")
+                        lang_retries.append({"group": group, "status": "no_anchor_discarded"})
+                        for idx in group:
+                            transcripts[idx] = ("", transcripts[idx][1])
                         continue
                     
                     # Build retry audio: context prefix (5s) + collapsed chunk(s)
@@ -1105,13 +1114,19 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                                     _slog(conn_id, f"[LangCollapse] Group {group} fixed via 500ms trim fallback")
                                 else:
                                     lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_fallback"})
-                                    _slog(conn_id, f"[LangCollapse] Group {group} fallback FAILED, keeping original")
+                                    _slog(conn_id, f"[LangCollapse] Group {group} fallback FAILED, discarding to empty string")
+                                    for idx in group:
+                                        transcripts[idx] = ("", transcripts[idx][1])
                             else:
                                 lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed_too_short"})
-                                _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback")
+                                _slog(conn_id, f"[LangCollapse] Group {group} audio too short for fallback, discarding to empty string")
+                                for idx in group:
+                                    transcripts[idx] = ("", transcripts[idx][1])
                         else:
                             lang_retries.append({"group": group, "anchor": anchor_idx, "status": "failed"})
-                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['jp_ratio']}), keeping original")
+                            _slog(conn_id, f"[LangCollapse] Group {group} retry FAILED (ratio {retry_detection['jp_ratio']}), discarding to empty string")
+                            for idx in group:
+                                transcripts[idx] = ("", transcripts[idx][1])
         
         # Merge transcripts
         transcript = _merge_chunk_transcripts(transcripts, chunk_infos)
