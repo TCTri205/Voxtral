@@ -1,0 +1,1323 @@
+[
+    {
+        "file": "media_148280_1767762915627.mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。アセットジャパンです。お茶になっております。下の名前はご存知です団体になりますのでデロコーゼロ1782すみません、会社名がバーディーズベボの場でバーで次がラリル、次が立ちつ出てします",
+        "duration": 80.08,
+        "connect_time": 1.255,
+        "stream_time": 0.0,
+        "wait_after_commit": 110.084,
+        "total_time": 111.34,
+        "total_rtf": 1.39,
+        "inference_rtf": 1.375,
+        "keepalive_count": 18,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 80.08,
+            "trimmed_duration": 78.1,
+            "speech_detected": true,
+            "first_speech_start_sec": 1.57,
+            "last_speech_end_sec": 79.07,
+            "num_segments": 27,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    2
+                ],
+                "anchor": 1,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "81.25%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 20.625,
+                "inference_rtf": 1.375,
+                "transcript_len": 17,
+                "tokens_generated": 17,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 20.625,
+                "inference_rtf": 1.375,
+                "transcript_len": 17,
+                "tokens_generated": 17,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 45.0,
+                "duration": 15.0,
+                "elapsed": 20.625,
+                "inference_rtf": 1.375,
+                "transcript_len": 17,
+                "tokens_generated": 17,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 3,
+                "start_sec": 45.0,
+                "end_sec": 60.0,
+                "duration": 15.0,
+                "elapsed": 20.625,
+                "inference_rtf": 1.375,
+                "transcript_len": 17,
+                "tokens_generated": 17,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 4,
+                "start_sec": 60.0,
+                "end_sec": 75.0,
+                "duration": 15.0,
+                "elapsed": 20.625,
+                "inference_rtf": 1.375,
+                "transcript_len": 17,
+                "tokens_generated": 17,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 5,
+                "start_sec": 75.0,
+                "end_sec": 80.08,
+                "duration": 5.08,
+                "elapsed": 6.985,
+                "inference_rtf": 1.375,
+                "transcript_len": 17,
+                "tokens_generated": 17,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 1
+            }
+        ],
+        "keepalive_peak": 4
+    },
+    {
+        "file": "media_148284_1767766514646 (1).mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。保険代理店ベネフィットでございます。おしゃれになります。AJテクノロジーズの�お待ちしておりました。今って携帯とかにかけても問題ないですか?今って携帯とかにかけても問題ないですかね分かんない",
+        "duration": 40.4,
+        "connect_time": 1.089,
+        "stream_time": 0.0,
+        "wait_after_commit": 66.374,
+        "total_time": 67.46,
+        "total_rtf": 1.67,
+        "inference_rtf": 1.643,
+        "keepalive_count": 12,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 40.4,
+            "trimmed_duration": 37.076,
+            "speech_detected": true,
+            "first_speech_start_sec": 0.77,
+            "last_speech_end_sec": 37.246,
+            "num_segments": 11,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    2
+                ],
+                "anchor": 1,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "69.62%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 24.645,
+                "inference_rtf": 1.643,
+                "transcript_len": 35,
+                "tokens_generated": 35,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 24.645,
+                "inference_rtf": 1.643,
+                "transcript_len": 35,
+                "tokens_generated": 35,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 40.4,
+                "duration": 10.4,
+                "elapsed": 17.087,
+                "inference_rtf": 1.643,
+                "transcript_len": 35,
+                "tokens_generated": 35,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 3
+            }
+        ],
+        "keepalive_peak": 4
+    },
+    {
+        "file": "media_148393_1767860211615 (1).mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。安水建設の安田と申します。いつもお世話になっています。AJテクノロジーズの山下です。ちょっと今外出しちゃってるんですけども困りましたありがとうございます",
+        "duration": 25.64,
+        "connect_time": 1.029,
+        "stream_time": 0.0,
+        "wait_after_commit": 41.049,
+        "total_time": 42.08,
+        "total_rtf": 1.641,
+        "inference_rtf": 1.601,
+        "keepalive_count": 7,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 25.64,
+            "trimmed_duration": 22.164,
+            "speech_detected": true,
+            "first_speech_start_sec": 1.442,
+            "last_speech_end_sec": 23.006,
+            "num_segments": 6,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    1
+                ],
+                "anchor": 0,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "60.64%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 24.015,
+                "inference_rtf": 1.601,
+                "transcript_len": 43,
+                "tokens_generated": 43,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 25.64,
+                "duration": 10.64,
+                "elapsed": 17.035,
+                "inference_rtf": 1.601,
+                "transcript_len": 43,
+                "tokens_generated": 43,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 3
+            }
+        ],
+        "keepalive_peak": 4
+    },
+    {
+        "file": "media_148394_1767860189485 (1).mp3",
+        "status": "success",
+        "transcript": "はい、マルケンです。いつもそうなってます。AJテクノロジーズの山下です。お疲れ様どういった内容でしょうか?今いらっしゃらないです",
+        "duration": 31.28,
+        "connect_time": 1.274,
+        "stream_time": 0.0,
+        "wait_after_commit": 31.222,
+        "total_time": 32.5,
+        "total_rtf": 1.039,
+        "inference_rtf": 0.998,
+        "keepalive_count": 5,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 31.28,
+            "trimmed_duration": 28.596,
+            "speech_detected": true,
+            "first_speech_start_sec": 0.962,
+            "last_speech_end_sec": 28.958,
+            "num_segments": 9,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [],
+        "rf": 0,
+        "cer": "72.36%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 14.97,
+                "inference_rtf": 0.998,
+                "transcript_len": 21,
+                "tokens_generated": 21,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 14.97,
+                "inference_rtf": 0.998,
+                "transcript_len": 21,
+                "tokens_generated": 21,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 31.28,
+                "duration": 1.28,
+                "elapsed": 1.277,
+                "inference_rtf": 0.998,
+                "transcript_len": 21,
+                "tokens_generated": 21,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            }
+        ],
+        "keepalive_peak": 2
+    },
+    {
+        "file": "media_148414_1767922241264 (1).mp3",
+        "status": "success",
+        "transcript": "はい、じゃあ先生管理科でございます。怪しけん名古屋市の株式会社アセットジャパンといいますなると思うんですけれども、お知らせしました。急ぎではございませんので、またこちらから改めさせていただきます。山内様宛てにですね、東浦町今度移転しますとお伝えください確かまりました 伝えたい感想はい ありがとうございます",
+        "duration": 53.36,
+        "connect_time": 1.144,
+        "stream_time": 0.0,
+        "wait_after_commit": 71.606,
+        "total_time": 72.75,
+        "total_rtf": 1.363,
+        "inference_rtf": 1.342,
+        "keepalive_count": 13,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 53.36,
+            "trimmed_duration": 51.924,
+            "speech_detected": true,
+            "first_speech_start_sec": 0.77,
+            "last_speech_end_sec": 52.094,
+            "num_segments": 9,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    3
+                ],
+                "anchor": 2,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "68.88%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 20.13,
+                "inference_rtf": 1.342,
+                "transcript_len": 38,
+                "tokens_generated": 38,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 20.13,
+                "inference_rtf": 1.342,
+                "transcript_len": 38,
+                "tokens_generated": 38,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 45.0,
+                "duration": 15.0,
+                "elapsed": 20.13,
+                "inference_rtf": 1.342,
+                "transcript_len": 38,
+                "tokens_generated": 38,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 3,
+                "start_sec": 45.0,
+                "end_sec": 53.36,
+                "duration": 8.36,
+                "elapsed": 11.219,
+                "inference_rtf": 1.342,
+                "transcript_len": 38,
+                "tokens_generated": 38,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            }
+        ],
+        "keepalive_peak": 4
+    },
+    {
+        "file": "media_148439_1767926711644 (1).mp3",
+        "status": "success",
+        "transcript": "こんにちは、遠隔不思議な社の坂本です。生徒キャパン、熊谷でございます。おはようございます。おはようございます。すいませはい10時からでお願いできますでしょうか分かりましたはいじゃあはいよろしくお願い致しますお願いしますはい失礼いたします失礼します",
+        "duration": 34.24,
+        "connect_time": 1.123,
+        "stream_time": 0.0,
+        "wait_after_commit": 56.263,
+        "total_time": 57.39,
+        "total_rtf": 1.676,
+        "inference_rtf": 1.643,
+        "keepalive_count": 10,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 34.24,
+            "trimmed_duration": 30.132,
+            "speech_detected": true,
+            "first_speech_start_sec": 2.37,
+            "last_speech_end_sec": 31.902,
+            "num_segments": 8,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    2
+                ],
+                "anchor": 1,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "60.58%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 24.645,
+                "inference_rtf": 1.643,
+                "transcript_len": 41,
+                "tokens_generated": 41,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 24.645,
+                "inference_rtf": 1.643,
+                "transcript_len": 41,
+                "tokens_generated": 41,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 34.24,
+                "duration": 4.24,
+                "elapsed": 6.966,
+                "inference_rtf": 1.643,
+                "transcript_len": 41,
+                "tokens_generated": 41,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 1
+            }
+        ],
+        "keepalive_peak": 4
+    },
+    {
+        "file": "media_148954_1768789819598 (1).mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。アセプトジャパンです。お忙しいところ恐れ入ります。私、三菱UF御社でアルバイトでお勤めと聞いております中原といたしました出勤で劣る人可能でしたらお願いしたいと思いましたお邪魔した次第なんですが出勤されてからで結構なんですけども、登校の方にお電話いただきたいので、伝言をお願いすることはできるの中原さんの携帯電話の方にも何度かお電話しておりまして留守番電話に銀行名と電話番土日祝日が朝9時から17時までお電話いただきたいもののでお願いしてもよろしいでしょうかはいかしこまりました申し伝えます",
+        "duration": 95.96,
+        "connect_time": 1.168,
+        "stream_time": 0.0,
+        "wait_after_commit": 122.578,
+        "total_time": 123.75,
+        "total_rtf": 1.29,
+        "inference_rtf": 1.277,
+        "keepalive_count": 23,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 95.96,
+            "trimmed_duration": 92.052,
+            "speech_detected": true,
+            "first_speech_start_sec": 1.666,
+            "last_speech_end_sec": 93.118,
+            "num_segments": 11,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    1
+                ],
+                "anchor": 0,
+                "status": "fixed"
+            },
+            {
+                "group": [
+                    6
+                ],
+                "anchor": 5,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "61.38%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 19.155,
+                "inference_rtf": 1.277,
+                "transcript_len": 36,
+                "tokens_generated": 36,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 3
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 19.155,
+                "inference_rtf": 1.277,
+                "transcript_len": 36,
+                "tokens_generated": 36,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 3
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 45.0,
+                "duration": 15.0,
+                "elapsed": 19.155,
+                "inference_rtf": 1.277,
+                "transcript_len": 36,
+                "tokens_generated": 36,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 3
+            },
+            {
+                "chunk_index": 3,
+                "start_sec": 45.0,
+                "end_sec": 60.0,
+                "duration": 15.0,
+                "elapsed": 19.155,
+                "inference_rtf": 1.277,
+                "transcript_len": 36,
+                "tokens_generated": 36,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 3
+            },
+            {
+                "chunk_index": 4,
+                "start_sec": 60.0,
+                "end_sec": 75.0,
+                "duration": 15.0,
+                "elapsed": 19.155,
+                "inference_rtf": 1.277,
+                "transcript_len": 36,
+                "tokens_generated": 36,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 3
+            },
+            {
+                "chunk_index": 5,
+                "start_sec": 75.0,
+                "end_sec": 90.0,
+                "duration": 15.0,
+                "elapsed": 19.155,
+                "inference_rtf": 1.277,
+                "transcript_len": 36,
+                "tokens_generated": 36,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 3
+            },
+            {
+                "chunk_index": 6,
+                "start_sec": 90.0,
+                "end_sec": 95.96,
+                "duration": 5.96,
+                "elapsed": 7.611,
+                "inference_rtf": 1.277,
+                "transcript_len": 36,
+                "tokens_generated": 36,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 1
+            }
+        ],
+        "keepalive_peak": 3
+    },
+    {
+        "file": "media_149291_1769069811005.mp3",
+        "status": "success",
+        "transcript": "お待たせいたしました。担当はただいま席を外しております。不在にしておりまして、一度はい、かつい標準にかかってきますか?ちょっと確認させていただきそれ以降でも大丈夫そうですか明日が通院あたりとかで多分出れないかポストのところにアセットジャパンって書いててこの電話番号が書いてある売り物件っていうのがカマがまあ分かりました大丈夫ですでも教授か明日以降ママがお伺いしてもよろしいですか?今だと言います。熊田様ですか?今だです。島田というわけでしましては、チラシを見てくださったということですか?いい、受けの目の前にいるんですけとりあえず内見できるならさせてもらってお話とかどういういろんなお話も聞きたいなと思ってかしこまります担当者のものに引き継ぎましてもし教授かけられることができましたら教授けれども分かりました大丈夫ありがとうございますお願いします",
+        "duration": 156.64,
+        "connect_time": 1.514,
+        "stream_time": 0.0,
+        "wait_after_commit": 235.091,
+        "total_time": 236.61,
+        "total_rtf": 1.511,
+        "inference_rtf": 1.501,
+        "keepalive_count": 45,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 156.64,
+            "trimmed_duration": 155.156,
+            "speech_detected": true,
+            "first_speech_start_sec": 1.026,
+            "last_speech_end_sec": 155.582,
+            "num_segments": 40,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    2
+                ],
+                "anchor": 1,
+                "status": "fixed"
+            },
+            {
+                "group": [
+                    5
+                ],
+                "anchor": 4,
+                "status": "failed"
+            },
+            {
+                "group": [
+                    8
+                ],
+                "anchor": 7,
+                "status": "fixed"
+            },
+            {
+                "group": [
+                    11
+                ],
+                "anchor": 10,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "66.56%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 45.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 3,
+                "start_sec": 45.0,
+                "end_sec": 60.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 4,
+                "start_sec": 60.0,
+                "end_sec": 75.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 5,
+                "start_sec": 75.0,
+                "end_sec": 90.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 6,
+                "start_sec": 90.0,
+                "end_sec": 105.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 7,
+                "start_sec": 105.0,
+                "end_sec": 120.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 8,
+                "start_sec": 120.0,
+                "end_sec": 135.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 9,
+                "start_sec": 135.0,
+                "end_sec": 150.0,
+                "duration": 15.0,
+                "elapsed": 22.515,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 4
+            },
+            {
+                "chunk_index": 10,
+                "start_sec": 150.0,
+                "end_sec": 156.64,
+                "duration": 6.64,
+                "elapsed": 9.967,
+                "inference_rtf": 1.501,
+                "transcript_len": 33,
+                "tokens_generated": 33,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 1
+            }
+        ],
+        "keepalive_peak": 4
+    },
+    {
+        "file": "media_149733_1769589919400.mp3",
+        "status": "success",
+        "transcript": "ありがとうございます。トモノです。すいません。シャワです。その1月19日に平野からお送りさせていただいておりましてすみませんはい、アリーだと思います。業界しました。杉笠さんもですか?お業を開始しましたスリガサさんもですかねスリガサさんも一購入なので、サイズショーなしです。なしで、梅田さんだけあればいいです",
+        "duration": 108.56,
+        "connect_time": 1.286,
+        "stream_time": 0.01,
+        "wait_after_commit": 97.78,
+        "total_time": 99.07,
+        "total_rtf": 0.913,
+        "inference_rtf": 0.901,
+        "keepalive_count": 18,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "original_duration": 108.56,
+            "trimmed_duration": 103.412,
+            "speech_detected": true,
+            "first_speech_start_sec": 0.866,
+            "last_speech_end_sec": 103.678,
+            "num_segments": 22,
+            "vad_threshold": 0.7,
+            "min_speech_duration_ms": 400,
+            "hallucination_warning": false,
+            "hallucination_severity": "none"
+        },
+        "lang_collapse_retries": [
+            {
+                "group": [
+                    4
+                ],
+                "anchor": 3,
+                "status": "fixed"
+            }
+        ],
+        "rf": 0,
+        "cer": "74.23%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 13.515,
+                "inference_rtf": 0.901,
+                "transcript_len": 19,
+                "tokens_generated": 19,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 13.515,
+                "inference_rtf": 0.901,
+                "transcript_len": 19,
+                "tokens_generated": 19,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 45.0,
+                "duration": 15.0,
+                "elapsed": 13.515,
+                "inference_rtf": 0.901,
+                "transcript_len": 19,
+                "tokens_generated": 19,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 3,
+                "start_sec": 45.0,
+                "end_sec": 60.0,
+                "duration": 15.0,
+                "elapsed": 13.515,
+                "inference_rtf": 0.901,
+                "transcript_len": 19,
+                "tokens_generated": 19,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 4,
+                "start_sec": 60.0,
+                "end_sec": 75.0,
+                "duration": 15.0,
+                "elapsed": 13.515,
+                "inference_rtf": 0.901,
+                "transcript_len": 19,
+                "tokens_generated": 19,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 5,
+                "start_sec": 75.0,
+                "end_sec": 90.0,
+                "duration": 15.0,
+                "elapsed": 13.515,
+                "inference_rtf": 0.901,
+                "transcript_len": 19,
+                "tokens_generated": 19,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 6,
+                "start_sec": 90.0,
+                "end_sec": 105.0,
+                "duration": 15.0,
+                "elapsed": 13.515,
+                "inference_rtf": 0.901,
+                "transcript_len": 19,
+                "tokens_generated": 19,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 2
+            },
+            {
+                "chunk_index": 7,
+                "start_sec": 105.0,
+                "end_sec": 108.56,
+                "duration": 3.56,
+                "elapsed": 3.208,
+                "inference_rtf": 0.901,
+                "transcript_len": 19,
+                "tokens_generated": 19,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            }
+        ],
+        "keepalive_peak": 2
+    },
+    {
+        "file": "silence_60s.wav",
+        "status": "success",
+        "transcript": "",
+        "duration": 60.0,
+        "connect_time": 1.701,
+        "stream_time": 0.0,
+        "wait_after_commit": 2.82,
+        "total_time": 4.52,
+        "total_rtf": 0.075,
+        "inference_rtf": 0.047,
+        "keepalive_count": 0,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "speech_detected": false,
+            "original_duration": 60.0,
+            "trimmed_duration": 60.0
+        },
+        "lang_collapse_retries": null,
+        "rf": 0,
+        "cer": "0.00%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 0.705,
+                "inference_rtf": 0.047,
+                "transcript_len": 0,
+                "tokens_generated": 0,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 0.705,
+                "inference_rtf": 0.047,
+                "transcript_len": 0,
+                "tokens_generated": 0,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 45.0,
+                "duration": 15.0,
+                "elapsed": 0.705,
+                "inference_rtf": 0.047,
+                "transcript_len": 0,
+                "tokens_generated": 0,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            },
+            {
+                "chunk_index": 3,
+                "start_sec": 45.0,
+                "end_sec": 60.0,
+                "duration": 15.0,
+                "elapsed": 0.705,
+                "inference_rtf": 0.047,
+                "transcript_len": 0,
+                "tokens_generated": 0,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            }
+        ],
+        "keepalive_peak": 0
+    },
+    {
+        "file": "stochastic_noise_60s.wav",
+        "status": "success",
+        "transcript": "",
+        "duration": 60.0,
+        "connect_time": 1.445,
+        "stream_time": 0.0,
+        "wait_after_commit": 3.414,
+        "total_time": 4.86,
+        "total_rtf": 0.081,
+        "inference_rtf": 0.057,
+        "keepalive_count": 0,
+        "chunks_sent": 0,
+        "bytes_sent": -1,
+        "delay_ms": 480,
+        "vad_config": {
+            "VAD_THRESHOLD": 0.7,
+            "VAD_PADDING_MS": 300,
+            "VAD_MIN_SPEECH_DURATION_MS": 400,
+            "VAD_MIN_SILENCE_DURATION_MS": 100,
+            "VAD_SEGMENT_SILENCE_MS": 1000,
+            "VAD_CHUNK_PADDING_MS": 200,
+            "CHUNK_LIMIT_SEC": 15.0,
+            "CHUNK_OVERLAP_SEC": 1.0,
+            "LANG_COLLAPSE_JP_RATIO": 0.55,
+            "LANG_COLLAPSE_RECOVERY": true,
+            "PREPROCESSING_ENABLED": true,
+            "_SERVER_VERSION": "2026-05-18.v10"
+        },
+        "vad_result": {
+            "speech_detected": false,
+            "original_duration": 60.0,
+            "trimmed_duration": 60.0
+        },
+        "lang_collapse_retries": null,
+        "rf": 0,
+        "cer": "0.00%",
+        "chunk_telemetry": [
+            {
+                "chunk_index": 0,
+                "start_sec": 0.0,
+                "end_sec": 15.0,
+                "duration": 15.0,
+                "elapsed": 0.855,
+                "inference_rtf": 0.057,
+                "transcript_len": 0,
+                "tokens_generated": 0,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            },
+            {
+                "chunk_index": 1,
+                "start_sec": 15.0,
+                "end_sec": 30.0,
+                "duration": 15.0,
+                "elapsed": 0.855,
+                "inference_rtf": 0.057,
+                "transcript_len": 0,
+                "tokens_generated": 0,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            },
+            {
+                "chunk_index": 2,
+                "start_sec": 30.0,
+                "end_sec": 45.0,
+                "duration": 15.0,
+                "elapsed": 0.855,
+                "inference_rtf": 0.057,
+                "transcript_len": 0,
+                "tokens_generated": 0,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            },
+            {
+                "chunk_index": 3,
+                "start_sec": 45.0,
+                "end_sec": 60.0,
+                "duration": 15.0,
+                "elapsed": 0.855,
+                "inference_rtf": 0.057,
+                "transcript_len": 0,
+                "tokens_generated": 0,
+                "retry_count": 0,
+                "is_language_collapse": false,
+                "keepalive_peak": 0
+            }
+        ],
+        "keepalive_peak": 0
+    }
+]

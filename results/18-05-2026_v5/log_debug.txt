@@ -1,0 +1,9 @@
+New batch run: results\18-05-2026_v5
+Found 1 files to process.
+[1/1] silence_60s.wav ...  Connecting to: ws://localhost:8000/v1/realtime
+
+[Client Error] silence_60s.wav: server rejected WebSocket connection: HTTP 403
+Failed (client_error: server rejected WebSocket connection: HTTP 403)
+
+Generating evaluation report: results\18-05-2026_v5\report.md ...
+Report generated successfully.

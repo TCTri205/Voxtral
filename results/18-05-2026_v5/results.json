@@ -1,0 +1,12 @@
+[
+    {
+        "status": "failed",
+        "error_type": "client_error",
+        "error_message": "server rejected WebSocket connection: HTTP 403",
+        "file": "silence_60s.wav",
+        "rf": 0,
+        "cer": "N/A",
+        "cer_speech_only": "N/A",
+        "cer_all_files": "N/A"
+    }
+]
