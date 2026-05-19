@@ -30,17 +30,22 @@ vad_utils = None
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 1.0
-VAD_PADDING_MS = 300  # Khôi phục về v11 (300ms để giảm thiểu ảo giác im lặng)
 
-# Silero VAD configuration (optimized for Japanese business conversations)
-VAD_THRESHOLD = 0.70  # Giữ nguyên để chặn tạp âm telephony bẩn
+# Asymmetric VAD Padding Config
+VAD_PADDING_LEFT_MS = 50       # Short leading padding to prevent language detection confusion
+VAD_PADDING_RIGHT_MS = 350     # Longer trailing padding to avoid clipping sentence endings
+VAD_CHUNK_PADDING_LEFT_MS = 50
+VAD_CHUNK_PADDING_RIGHT_MS = 300
+
+# Silero VAD configuration (optimized for Japanese telephony business conversations)
+VAD_THRESHOLD = 0.45           # Lowered to capture quiet speech turns in telephony
 VAD_CHUNK_SKIP_THRESHOLD = 0.20
-VAD_MIN_SPEECH_DURATION_MS = 400
+VAD_MIN_SPEECH_DURATION_MS = 250  # Balanced to filter out short transient clicks/pops
 VAD_MIN_SILENCE_DURATION_MS = 100
 
 # Tinh chỉnh khoảng dừng phân tách chunk và gọt đuôi im lặng
 VAD_SEGMENT_SILENCE_MS = 700   # Khôi phục về v11/v15-V2 (700ms) để giữ tính liên tục của câu thoại
-VAD_CHUNK_PADDING_MS = 200     # Khôi phục về v11/v15-V2 (200ms) để đảm bảo ngữ cảnh cho Whisper
+
 
 # Hallucination guardrails config
 ENABLE_RETRY_HALLUCINATION = True
@@ -62,11 +67,13 @@ _SERVER_VERSION = "2026-05-18.v15"
 def _vad_config_metadata() -> dict:
     return {
         "VAD_THRESHOLD": VAD_THRESHOLD,
-        "VAD_PADDING_MS": VAD_PADDING_MS,
+        "VAD_PADDING_LEFT_MS": VAD_PADDING_LEFT_MS,
+        "VAD_PADDING_RIGHT_MS": VAD_PADDING_RIGHT_MS,
+        "VAD_CHUNK_PADDING_LEFT_MS": VAD_CHUNK_PADDING_LEFT_MS,
+        "VAD_CHUNK_PADDING_RIGHT_MS": VAD_CHUNK_PADDING_RIGHT_MS,
         "VAD_MIN_SPEECH_DURATION_MS": VAD_MIN_SPEECH_DURATION_MS,
         "VAD_MIN_SILENCE_DURATION_MS": VAD_MIN_SILENCE_DURATION_MS,
         "VAD_SEGMENT_SILENCE_MS": VAD_SEGMENT_SILENCE_MS,
-        "VAD_CHUNK_PADDING_MS": VAD_CHUNK_PADDING_MS,
         "CHUNK_LIMIT_SEC": CHUNK_LIMIT_SEC,
         "CHUNK_OVERLAP_SEC": CHUNK_OVERLAP_SEC,
         "LANG_COLLAPSE_JP_RATIO": LANG_COLLAPSE_JP_RATIO,
@@ -128,9 +135,8 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     """
     Perform audio preprocessing to improve ASR quality.
     - DC Offset Removal: Centers the signal at zero.
-    - RMS Normalization: Scales the signal to target RMS level (-20dBFS).
-    - Gain Clamping: Limits maximum gain to avoid over-amplifying noise.
-    - Soft Noise Gate: Attenuates near-silent segments.
+    - Zero-Phase Bandpass Filter (100Hz - 7500Hz): Isolates voice and eliminates hum/static.
+    - Peak-Aware Adaptive RMS Normalization: Dynamic gain clamping to prevent amplifying quiet static.
     """
     if not ENABLE_PREPROCESSING:
         return audio_np
@@ -140,36 +146,46 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. High-Pass Filter (80Hz) to remove low-frequency rumble
+    # 2. Zero-Phase Bandpass Filter (100Hz - 7500Hz)
     try:
-        sos = signal.butter(4, 80, 'hp', fs=sample_rate, output='sos')
-        audio_np = signal.sosfilt(sos, audio_np)
+        low_cut = 100.0
+        high_cut = min(7500.0, sample_rate / 2.0 - 100.0)
+        sos = signal.butter(4, [low_cut, high_cut], 'bandpass', fs=sample_rate, output='sos')
+        audio_np = signal.sosfiltfilt(sos, audio_np)
     except Exception as e:
-        _slog(conn_id, f"Preprocessing: HPF failed: {e}")
+        _slog(conn_id, f"Preprocessing: Bandpass filter failed: {e}")
 
-    # 3. RMS Calculation
+    # 3. Peak, RMS, and Crest Factor Calculation
+    peak = np.max(np.abs(audio_np))
     rms = np.sqrt(np.mean(audio_np**2))
+    crest_factor = peak / (rms + 1e-9)
     
-    # 4. Soft Noise Gate (-50dBFS threshold)
-    noise_gate_threshold = 10**(-50/20) # ~0.00316
-    if rms < noise_gate_threshold:
-        # Near silent: attenuate further to help VAD ignore it
-        audio_np = audio_np * 0.1
-        _slog(conn_id, f"Preprocessing: Noise gate active (RMS={20*np.log10(rms+1e-9):.1f}dBFS)")
-        return audio_np
-
-    # 5. RMS Normalization (Target -20dBFS = 0.1)
-    target_rms = 10**(-20/20) # 0.1
-    gain = target_rms / (rms + 1e-9)
+    rms_db = 20 * np.log10(rms + 1e-9)
+    peak_db = 20 * np.log10(peak + 1e-9)
     
-    # 6. Gain Clamping (Max 10x / 20dB)
-    clamped_gain = min(gain, 10.0)
-    audio_np = audio_np * clamped_gain
+    # 4. Adaptive Gain Normalization & Noise Gate
+    # Dual-threshold guardrail to detect pure line static:
+    # Quiet RMS (< -45dBFS) and no loud peaks (< -35dBFS)
+    is_pure_static = (rms_db < -45.0) and (peak_db < -35.0)
     
+    if is_pure_static:
+        # Avoid boosting static noise: apply very low gain
+        clamped_gain = 2.0
+        audio_np = audio_np * clamped_gain
+        _slog(conn_id, f"Preprocessing: Static noise clamped (RMS={rms_db:.1f}dBFS, Peak={peak_db:.1f}dBFS, Crest={crest_factor:.2f}, gain={clamped_gain:.2f}x)")
+    else:
+        # Standard speech RMS normalization (Target -20dBFS = 0.1)
+        target_rms = 10**(-20/20) # 0.1
+        gain = target_rms / (rms + 1e-9)
+        # Limit max boost to 10x (20dB)
+        clamped_gain = min(gain, 10.0)
+        audio_np = audio_np * clamped_gain
+        
     # Final safety clip
     audio_np = np.clip(audio_np, -1.0, 1.0)
     
-    _slog(conn_id, f"Preprocessing: HPF(80Hz) + RMS Norm (gain={clamped_gain:.2f}x, final_rms={20*np.log10(np.sqrt(np.mean(audio_np**2))+1e-9):.1f}dBFS) in {time.time()-t0:.3f}s")
+    final_rms = 20 * np.log10(np.sqrt(np.mean(audio_np**2)) + 1e-9)
+    _slog(conn_id, f"Preprocessing: BP(100-7500Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np.astype(np.float32)
 
@@ -255,10 +271,11 @@ def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
         first_start_sec = first_start / sample_rate
         last_end_sec = last_end / sample_rate
 
-        # Apply padding (convert ms to samples)
-        padding_samples = int((VAD_PADDING_MS / 1000.0) * sample_rate)
-        start_sample = max(0, first_start - padding_samples)
-        end_sample = min(len(audio_np), last_end + padding_samples)
+        # Apply asymmetric padding (convert ms to samples)
+        padding_left_samples = int((VAD_PADDING_LEFT_MS / 1000.0) * sample_rate)
+        padding_right_samples = int((VAD_PADDING_RIGHT_MS / 1000.0) * sample_rate)
+        start_sample = max(0, first_start - padding_left_samples)
+        end_sample = min(len(audio_np), last_end + padding_right_samples)
 
         # Trim audio
         trimmed_audio = audio_np[start_sample:end_sample]
@@ -284,9 +301,10 @@ def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
 
 def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, sample_rate: int = 16000, 
                              max_chunk_sec: float = CHUNK_LIMIT_SEC, 
-                             padding_ms: int = VAD_CHUNK_PADDING_MS) -> list:
+                             padding_left_ms: int = VAD_CHUNK_PADDING_LEFT_MS,
+                             padding_right_ms: int = VAD_CHUNK_PADDING_RIGHT_MS) -> list:
     """
-    Group VAD speech segments into chunks <= max_chunk_sec. (Phiên bản v11 ổn định)
+    Group VAD speech segments into chunks <= max_chunk_sec with asymmetric padding.
     """
     if not speech_timestamps:
         return []
@@ -296,7 +314,8 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
     current_chunk_start = speech_timestamps[0]['start']
     current_chunk_end = speech_timestamps[0]['end']
     
-    padding_samples = int((padding_ms / 1000.0) * sample_rate)
+    padding_left_samples = int((padding_left_ms / 1000.0) * sample_rate)
+    padding_right_samples = int((padding_right_ms / 1000.0) * sample_rate)
     max_chunk_samples = int(max_chunk_sec * sample_rate)
     
     for i in range(1, len(speech_timestamps)):
@@ -309,8 +328,8 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
             current_chunk_end = segment['end']
             current_chunk_segments.append(segment)
         else:
-            start_idx = max(0, current_chunk_start - padding_samples)
-            end_idx = min(len(audio_np), current_chunk_end + padding_samples)
+            start_idx = max(0, current_chunk_start - padding_left_samples)
+            end_idx = min(len(audio_np), current_chunk_end + padding_right_samples)
             chunk_audio = audio_np[start_idx:end_idx]
             
             if len(chunk_audio) > max_chunk_samples:
@@ -348,8 +367,8 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
             current_chunk_segments = [segment]
             
     # Xử lý chunk cuối cùng
-    start_idx = max(0, current_chunk_start - padding_samples)
-    end_idx = min(len(audio_np), current_chunk_end + padding_samples)
+    start_idx = max(0, current_chunk_start - padding_left_samples)
+    end_idx = min(len(audio_np), current_chunk_end + padding_right_samples)
     chunk_audio = audio_np[start_idx:end_idx]
     
     if len(chunk_audio) > max_chunk_samples:
@@ -891,7 +910,8 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             speech_timestamps, 
             sample_rate=sample_rate,
             max_chunk_sec=CHUNK_LIMIT_SEC,
-            padding_ms=VAD_CHUNK_PADDING_MS
+            padding_left_ms=VAD_CHUNK_PADDING_LEFT_MS,
+            padding_right_ms=VAD_CHUNK_PADDING_RIGHT_MS
         )
         
         if not chunks:
@@ -929,9 +949,23 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 min_silence_duration_ms=100,
             )
             
+            # Add spectral flatness check to ignore pure telephone line static/noise
+            is_static_noise = False
+            try:
+                fft_vals = np.abs(np.fft.rfft(chunk_audio))
+                geom_mean = np.exp(np.mean(np.log(fft_vals + 1e-9)))
+                arith_mean = np.mean(fft_vals) + 1e-9
+                flatness = geom_mean / arith_mean
+                # Pure noise/static usually has spectral flatness > 0.45, speech has much lower flatness (< 0.20)
+                if flatness > 0.45 and duration > 1.0:
+                    is_static_noise = True
+                    _slog(conn_id, f"Inference: Chunk {i+1} ({duration:.2f}s) has high spectral flatness ({flatness:.3f}) - likely static line noise")
+            except Exception as e:
+                _slog(conn_id, f"Spectral Flatness check failed: {e}")
+            
             skipped_due_to_silence = False
-            if not chunk_speech:
-                _slog(conn_id, f"Inference: Skipping Chunk {i+1} ({duration:.2f}s) due to silence/no speech")
+            if not chunk_speech or is_static_noise:
+                _slog(conn_id, f"Inference: Skipping Chunk {i+1} ({duration:.2f}s) due to silence/no speech/static noise")
                 chunk_transcript = ""
                 chunk_elapsed = 0.0
                 skipped_due_to_silence = True
