@@ -169,10 +169,10 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. Zero-Phase Butterworth Bandpass Filter (300Hz - 3400Hz) to isolate voice
+    # 2. Zero-Phase Butterworth Bandpass Filter (100Hz - 7500Hz) to isolate voice
     try:
-        low_cut = 300.0
-        high_cut = 3400.0
+        low_cut = 100.0
+        high_cut = 7500.0
         sos = signal.butter(4, [low_cut, high_cut], 'bandpass', fs=sample_rate, output='sos')
         audio_np = signal.sosfiltfilt(sos, audio_np)
     except Exception as e:
@@ -208,7 +208,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     audio_np = np.clip(audio_np, -1.0, 1.0)
     
     final_rms = 20 * np.log10(np.sqrt(np.mean(audio_np**2)) + 1e-9)
-    _slog(conn_id, f"Preprocessing: Bandpass(300Hz-3400Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
+    _slog(conn_id, f"Preprocessing: Bandpass(100Hz-7500Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np.astype(np.float32)
 
