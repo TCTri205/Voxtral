@@ -15,6 +15,7 @@ import argparse
 import librosa # Added for server-side file loading
 import threading
 from scipy import signal
+import difflib
 
 app = FastAPI()
 
@@ -29,7 +30,7 @@ vad_utils = None
 
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
-CHUNK_OVERLAP_SEC = 1.0
+CHUNK_OVERLAP_SEC = 0.5
 
 # Asymmetric VAD Padding Config
 VAD_PADDING_LEFT_MS = 50       # Short leading padding to prevent language detection confusion
@@ -157,7 +158,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     """
     Perform audio preprocessing to improve ASR quality.
     - DC Offset Removal: Centers the signal at zero.
-    - Zero-Phase Bandpass Filter (100Hz - 7500Hz): Isolates voice and eliminates hum/static.
+    - Zero-Phase Bandpass Filter (300Hz - 3400Hz): Isolates voice and eliminates hum/static/hiss.
     - Peak-Aware Adaptive RMS Normalization: Dynamic gain clamping to prevent amplifying quiet static.
     """
     if not ENABLE_PREPROCESSING:
@@ -168,13 +169,14 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. Zero-Phase High-Pass Filter (100Hz) to remove low hum/rumble
+    # 2. Zero-Phase Butterworth Bandpass Filter (300Hz - 3400Hz) to isolate voice
     try:
-        low_cut = 100.0
-        sos = signal.butter(2, low_cut, 'highpass', fs=sample_rate, output='sos')
+        low_cut = 300.0
+        high_cut = 3400.0
+        sos = signal.butter(4, [low_cut, high_cut], 'bandpass', fs=sample_rate, output='sos')
         audio_np = signal.sosfiltfilt(sos, audio_np)
     except Exception as e:
-        _slog(conn_id, f"Preprocessing: Highpass filter failed: {e}")
+        _slog(conn_id, f"Preprocessing: Bandpass filter failed: {e}")
 
     # 3. Peak, RMS, and Crest Factor Calculation
     peak = np.max(np.abs(audio_np))
@@ -206,7 +208,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     audio_np = np.clip(audio_np, -1.0, 1.0)
     
     final_rms = 20 * np.log10(np.sqrt(np.mean(audio_np**2)) + 1e-9)
-    _slog(conn_id, f"Preprocessing: HPF(100Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
+    _slog(conn_id, f"Preprocessing: Bandpass(300Hz-3400Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np.astype(np.float32)
 
@@ -673,6 +675,45 @@ def _exact_overlap_chars(left: str, right: str) -> int:
     return 0
 
 
+def _fuzzy_overlap_chars(left: str, right: str) -> int:
+    """
+    Find the length of the overlapping prefix of 'right' that matches a suffix of 'left'
+    using difflib.SequenceMatcher.
+    """
+    if not left or not right:
+        return 0
+        
+    left_clean = left.strip()
+    right_clean = right.strip()
+    
+    max_search_len = min(len(left_clean), len(right_clean), 150)
+    if max_search_len == 0:
+        return 0
+        
+    left_tail = left_clean[-max_search_len:]
+    right_head = right_clean[:max_search_len]
+    
+    matcher = difflib.SequenceMatcher(None, left_tail, right_head)
+    matching_blocks = matcher.get_matching_blocks()
+    
+    best_overlap_len = 0
+    
+    for a, b, size in matching_blocks:
+        if size == 0:
+            continue
+            
+        dist_to_left_end = len(left_tail) - (a + size)
+        dist_to_right_start = b
+        
+        # Allow up to 6 characters of boundary mismatch (ASR/punctuation noise)
+        if dist_to_left_end <= 6 and dist_to_right_start <= 6:
+            overlap_len = b + size
+            if overlap_len > best_overlap_len:
+                best_overlap_len = overlap_len
+                
+    return best_overlap_len
+
+
 def _chunks_time_overlap(prev_info: dict | None, current_info: dict | None) -> bool:
     if not prev_info or not current_info:
         return False
@@ -738,7 +779,7 @@ def _truncate_repetitions(text: str, n_range=(3, 4, 5, 6, 7, 8), threshold=2) ->
 
 def _merge_chunk_transcripts(transcripts: list, chunk_infos: list | None = None, overlap_sec: float = CHUNK_OVERLAP_SEC) -> str:
     """
-    Merge transcripts from chunks, trimming exact text duplicated by overlapping sub-chunks.
+    Merge transcripts from chunks, trimming fuzzy/exact text duplicated by overlapping sub-chunks.
     
     Args:
         transcripts: List of (transcript, duration) tuples
@@ -761,7 +802,7 @@ def _merge_chunk_transcripts(transcripts: list, chunk_infos: list | None = None,
             prev_info = chunk_infos[i - 1] if chunk_infos and i - 1 < len(chunk_infos) else None
             current_info = chunk_infos[i] if chunk_infos and i < len(chunk_infos) else None
             if _chunks_time_overlap(prev_info, current_info):
-                overlap_chars = _exact_overlap_chars(merged, chunk_text)
+                overlap_chars = _fuzzy_overlap_chars(merged, chunk_text)
                 if overlap_chars:
                     chunk_text = chunk_text[overlap_chars:]
             merged += chunk_text  # No space needed for Japanese
