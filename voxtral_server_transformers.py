@@ -108,8 +108,8 @@ def _is_japanese_char(c: str) -> bool:
 
 def _detect_language_collapse(transcript: str) -> dict:
     """
-    Detect if the transcript is likely a language collapse (hallucinated English/Russian).
-    Uses the ratio of Japanese characters to total alphabetic letters.
+    Detect if the transcript is likely a language collapse (hallucinated English/Russian/Chinese).
+    Uses the ratio of Japanese characters to total alphabetic letters, and also checks for Chinese drift.
     """
     text = transcript.strip()
     if len(text) == 0:
@@ -117,6 +117,28 @@ def _detect_language_collapse(transcript: str) -> dict:
     if len(text) < LANG_COLLAPSE_MIN_CHARS:
         return {"is_collapsed": False, "jp_ratio": 1.0, "reason": "too_short"}
     
+    # Check for Chinese drift patterns
+    # Pure Chinese characters/particles that are never used in Japanese business phone transcripts
+    PURE_CHINESE_CHARS = set("這这們们誰谁麼么嗎吗吧呢我你她它")
+    PURE_CHINESE_PHRASES = ["這是", "是デ", "我的", "我們", "你是", "他們", "不是", "不要", "不用", "謝謝"]
+    
+    has_chinese_char = any(c in PURE_CHINESE_CHARS for c in text)
+    has_chinese_phrase = any(p in text for p in PURE_CHINESE_PHRASES)
+    
+    if has_chinese_char or has_chinese_phrase:
+        reason_detail = []
+        if has_chinese_char:
+            matched_chars = "".join(sorted(list(set(c for c in text if c in PURE_CHINESE_CHARS))))
+            reason_detail.append(f"Chinese chars found: {matched_chars}")
+        if has_chinese_phrase:
+            matched_phrases = [p for p in PURE_CHINESE_PHRASES if p in text]
+            reason_detail.append(f"Chinese phrases found: {matched_phrases}")
+        return {
+            "is_collapsed": True,
+            "jp_ratio": 0.0,
+            "reason": f"Chinese drift: {'; '.join(reason_detail)}",
+        }
+        
     letters = [c for c in text if c.isalpha()]
     if not letters:
         return {"is_collapsed": False, "jp_ratio": 1.0, "reason": "no_alpha"}
@@ -146,14 +168,13 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. Zero-Phase Bandpass Filter (100Hz - 7500Hz)
+    # 2. Zero-Phase High-Pass Filter (100Hz) to remove low hum/rumble
     try:
         low_cut = 100.0
-        high_cut = min(7500.0, sample_rate / 2.0 - 100.0)
-        sos = signal.butter(4, [low_cut, high_cut], 'bandpass', fs=sample_rate, output='sos')
+        sos = signal.butter(2, low_cut, 'highpass', fs=sample_rate, output='sos')
         audio_np = signal.sosfiltfilt(sos, audio_np)
     except Exception as e:
-        _slog(conn_id, f"Preprocessing: Bandpass filter failed: {e}")
+        _slog(conn_id, f"Preprocessing: Highpass filter failed: {e}")
 
     # 3. Peak, RMS, and Crest Factor Calculation
     peak = np.max(np.abs(audio_np))
@@ -185,7 +206,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     audio_np = np.clip(audio_np, -1.0, 1.0)
     
     final_rms = 20 * np.log10(np.sqrt(np.mean(audio_np**2)) + 1e-9)
-    _slog(conn_id, f"Preprocessing: BP(100-7500Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
+    _slog(conn_id, f"Preprocessing: HPF(100Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np.astype(np.float32)
 
@@ -333,26 +354,32 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
             chunk_audio = audio_np[start_idx:end_idx]
             
             if len(chunk_audio) > max_chunk_samples:
-                chunk_duration = len(chunk_audio) / sample_rate
-                overlap_sec = CHUNK_OVERLAP_SEC
-                n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
-                effective_duration = chunk_duration - overlap_sec
-                step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
-                step_samples = int(step * sample_rate)
-                overlap_samples = int(overlap_sec * sample_rate)
-
-                for idx in range(n_chunks):
-                    sub_pos = int(idx * step_samples)
-                    sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
-                    sub_audio = chunk_audio[sub_pos:sub_end]
-
+                # Sliding window chunking with backward adjustment for the last chunk
+                overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
+                step_samples = max_chunk_samples - overlap_samples
+                
+                pos = 0
+                idx = 0
+                while pos < len(chunk_audio):
+                    end = pos + max_chunk_samples
+                    if end >= len(chunk_audio):
+                        # Last chunk: adjust start backward to get exactly max_chunk_samples
+                        pos = max(0, len(chunk_audio) - max_chunk_samples)
+                        end = len(chunk_audio)
+                        
+                    sub_audio = chunk_audio[pos:end]
                     chunks.append({
                         "audio_np": sub_audio,
-                        "start_sec": (start_idx + sub_pos) / sample_rate,
-                        "end_sec": (start_idx + sub_end) / sample_rate,
+                        "start_sec": (start_idx + pos) / sample_rate,
+                        "end_sec": (start_idx + end) / sample_rate,
                         "segments_count": len(current_chunk_segments) if idx == 0 else 0,
                         "is_sub_chunk": True,
                     })
+                    
+                    if end == len(chunk_audio):
+                        break
+                    pos += step_samples
+                    idx += 1
             else:
                 chunks.append({
                     "audio_np": chunk_audio,
@@ -372,25 +399,32 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
     chunk_audio = audio_np[start_idx:end_idx]
     
     if len(chunk_audio) > max_chunk_samples:
-        chunk_duration = len(chunk_audio) / sample_rate
-        overlap_sec = CHUNK_OVERLAP_SEC
-        n_chunks = max(2, math.ceil(chunk_duration / (max_chunk_sec - overlap_sec * 0.5)))
-        effective_duration = chunk_duration - overlap_sec
-        step = effective_duration / (n_chunks - 1) if n_chunks > 1 else effective_duration
-        step_samples = int(step * sample_rate)
-
-        for idx in range(n_chunks):
-            sub_pos = int(idx * step_samples)
-            sub_end = min(sub_pos + max_chunk_samples, len(chunk_audio))
-            sub_audio = chunk_audio[sub_pos:sub_end]
-
+        # Sliding window chunking with backward adjustment for the last chunk
+        overlap_samples = int(CHUNK_OVERLAP_SEC * sample_rate)
+        step_samples = max_chunk_samples - overlap_samples
+        
+        pos = 0
+        idx = 0
+        while pos < len(chunk_audio):
+            end = pos + max_chunk_samples
+            if end >= len(chunk_audio):
+                # Last chunk: adjust start backward to get exactly max_chunk_samples
+                pos = max(0, len(chunk_audio) - max_chunk_samples)
+                end = len(chunk_audio)
+                
+            sub_audio = chunk_audio[pos:end]
             chunks.append({
                 "audio_np": sub_audio,
-                "start_sec": (start_idx + sub_pos) / sample_rate,
-                "end_sec": (start_idx + sub_end) / sample_rate,
+                "start_sec": (start_idx + pos) / sample_rate,
+                "end_sec": (start_idx + end) / sample_rate,
                 "segments_count": len(current_chunk_segments) if idx == 0 else 0,
                 "is_sub_chunk": True,
             })
+            
+            if end == len(chunk_audio):
+                break
+            pos += step_samples
+            idx += 1
     else:
         chunks.append({
             "audio_np": chunk_audio,
