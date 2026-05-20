@@ -678,7 +678,7 @@ def _exact_overlap_chars(left: str, right: str) -> int:
 def _fuzzy_overlap_chars(left: str, right: str) -> int:
     """
     Find the length of the overlapping prefix of 'right' that matches a suffix of 'left'
-    using difflib.SequenceMatcher.
+    using a robust offset-consistency check on difflib.SequenceMatcher blocks.
     """
     if not left or not right:
         return 0
@@ -696,18 +696,34 @@ def _fuzzy_overlap_chars(left: str, right: str) -> int:
     matcher = difflib.SequenceMatcher(None, left_tail, right_head)
     matching_blocks = matcher.get_matching_blocks()
     
+    tolerance = 6
     best_overlap_len = 0
     
-    for a, b, size in matching_blocks:
-        if size == 0:
+    # Check each block's offset as a candidate dominant offset
+    for candidate_block in matching_blocks:
+        if candidate_block.size == 0:
+            continue
+        candidate_offset = candidate_block.a - candidate_block.b
+        
+        # Gather all matching blocks consistent with the candidate offset
+        consistent_blocks = []
+        for block in matching_blocks:
+            if block.size == 0:
+                continue
+            offset = block.a - block.b
+            if abs(offset - candidate_offset) <= tolerance:
+                consistent_blocks.append(block)
+                
+        if not consistent_blocks:
             continue
             
-        dist_to_left_end = len(left_tail) - (a + size)
-        dist_to_right_start = b
+        # Verify boundary coverage of the consistent block chain
+        min_b = min(block.b for block in consistent_blocks)
+        max_a_plus_size = max(block.a + block.size for block in consistent_blocks)
         
-        # Allow up to 6 characters of boundary mismatch (ASR/punctuation noise)
-        if dist_to_left_end <= 6 and dist_to_right_start <= 6:
-            overlap_len = b + size
+        # Must start near right_head's start and end near left_tail's end
+        if min_b <= 10 and max_a_plus_size >= len(left_tail) - 10:
+            overlap_len = max(block.b + block.size for block in consistent_blocks)
             if overlap_len > best_overlap_len:
                 best_overlap_len = overlap_len
                 
@@ -752,7 +768,7 @@ def _find_healthy_neighbor(group: list[int], total_chunks: int,
     return None
 
 
-def _truncate_repetitions(text: str, n_range=(3, 4, 5, 6, 7, 8), threshold=2) -> str:
+def _truncate_repetitions(text: str, n_range=(3, 4, 5, 6, 7, 8, 10, 12), threshold=2) -> str:
     """
     Detect and truncate tail-end repetitions (hallucinations).
     Example: "A B C B C B C" -> "A B C"
@@ -1170,11 +1186,11 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                         anchor_text = transcripts[anchor_idx][0]
                         if anchor_idx < group[0]:
                             # Context was at the beginning → trim anchor's text from start
-                            overlap = _exact_overlap_chars(anchor_text, retry_transcript)
+                            overlap = _fuzzy_overlap_chars(anchor_text, retry_transcript)
                             corrected_text = retry_transcript[overlap:] if overlap else retry_transcript
                         else:
                             # Context was at the end → trim anchor's text from end
-                            overlap = _exact_overlap_chars(retry_transcript, anchor_text)
+                            overlap = _fuzzy_overlap_chars(retry_transcript, anchor_text)
                             corrected_text = retry_transcript[:len(retry_transcript)-overlap] if overlap else retry_transcript
                         
                         # Replace collapsed chunks' transcripts
@@ -1590,3 +1606,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
     load_voxtral_model(args.model, args.load_in_4bit)
     uvicorn.run(app, host=args.host, port=args.port)
+
