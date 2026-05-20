@@ -33,9 +33,9 @@ CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 0.5
 
 # Asymmetric VAD Padding Config
-VAD_PADDING_LEFT_MS = 50       # Short leading padding to prevent language detection confusion
+VAD_PADDING_LEFT_MS = 300       # Increased from 50ms to prevent speech onset truncation
 VAD_PADDING_RIGHT_MS = 350     # Longer trailing padding to avoid clipping sentence endings
-VAD_CHUNK_PADDING_LEFT_MS = 50
+VAD_CHUNK_PADDING_LEFT_MS = 300
 VAD_CHUNK_PADDING_RIGHT_MS = 300
 
 # Silero VAD configuration (optimized for Japanese telephony business conversations)
@@ -44,8 +44,8 @@ VAD_CHUNK_SKIP_THRESHOLD = 0.20
 VAD_MIN_SPEECH_DURATION_MS = 250  # Balanced to filter out short transient clicks/pops
 VAD_MIN_SILENCE_DURATION_MS = 100
 
-# Tinh chỉnh khoảng dừng phân tách chunk và gọt đuôi im lặng
-VAD_SEGMENT_SILENCE_MS = 700   # Khôi phục về v11/v15-V2 (700ms) để giữ tính liên tục của câu thoại
+# Fine-tune split silence duration and strip tail silence
+VAD_SEGMENT_SILENCE_MS = 700   # Restored to v11/v15-V2 (700ms) to preserve voice continuity
 
 
 # Hallucination guardrails config
@@ -158,7 +158,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     """
     Perform audio preprocessing to improve ASR quality.
     - DC Offset Removal: Centers the signal at zero.
-    - Zero-Phase Bandpass Filter (300Hz - 3400Hz): Isolates voice and eliminates hum/static/hiss.
+    - Zero-Phase High-Pass Filter (80Hz): Isolates voice and removes low-frequency hum/rumble.
     - Peak-Aware Adaptive RMS Normalization: Dynamic gain clamping to prevent amplifying quiet static.
     """
     if not ENABLE_PREPROCESSING:
@@ -169,14 +169,13 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     # 1. DC Offset Removal
     audio_np = audio_np - np.mean(audio_np)
     
-    # 2. Zero-Phase Butterworth Bandpass Filter (100Hz - 7500Hz) to isolate voice
+    # 2. Zero-Phase Butterworth High-Pass Filter (80Hz) to remove low-frequency hum/rumble
     try:
-        low_cut = 100.0
-        high_cut = 7500.0
-        sos = signal.butter(4, [low_cut, high_cut], 'bandpass', fs=sample_rate, output='sos')
+        cutoff = 80.0
+        sos = signal.butter(4, cutoff, 'highpass', fs=sample_rate, output='sos')
         audio_np = signal.sosfiltfilt(sos, audio_np)
     except Exception as e:
-        _slog(conn_id, f"Preprocessing: Bandpass filter failed: {e}")
+        _slog(conn_id, f"Preprocessing: High-pass filter failed: {e}")
 
     # 3. Peak, RMS, and Crest Factor Calculation
     peak = np.max(np.abs(audio_np))
@@ -208,7 +207,7 @@ def _preprocess_audio(audio_np: np.ndarray, conn_id: str, sample_rate: int = 160
     audio_np = np.clip(audio_np, -1.0, 1.0)
     
     final_rms = 20 * np.log10(np.sqrt(np.mean(audio_np**2)) + 1e-9)
-    _slog(conn_id, f"Preprocessing: Bandpass(100Hz-7500Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
+    _slog(conn_id, f"Preprocessing: HPF(80Hz) + Adaptive Norm (gain={clamped_gain:.2f}x, final_rms={final_rms:.1f}dBFS) in {time.time()-t0:.3f}s")
         
     return audio_np.astype(np.float32)
 
@@ -395,7 +394,7 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
             current_chunk_end = segment['end']
             current_chunk_segments = [segment]
             
-    # Xử lý chunk cuối cùng
+    # Process the final chunk
     start_idx = max(0, current_chunk_start - padding_left_samples)
     end_idx = min(len(audio_np), current_chunk_end + padding_right_samples)
     chunk_audio = audio_np[start_idx:end_idx]
@@ -678,7 +677,7 @@ def _exact_overlap_chars(left: str, right: str) -> int:
 def _fuzzy_overlap_chars(left: str, right: str) -> int:
     """
     Find the length of the overlapping prefix of 'right' that matches a suffix of 'left'
-    using a robust offset-consistency check on difflib.SequenceMatcher blocks.
+    using a monotonic boundary-matching chain logic.
     """
     if not left or not right:
         return 0
@@ -686,48 +685,30 @@ def _fuzzy_overlap_chars(left: str, right: str) -> int:
     left_clean = left.strip()
     right_clean = right.strip()
     
-    max_search_len = min(len(left_clean), len(right_clean), 150)
-    if max_search_len == 0:
-        return 0
-        
-    left_tail = left_clean[-max_search_len:]
-    right_head = right_clean[:max_search_len]
+    left_max_len = min(len(left_clean), 180)
+    right_max_len = min(len(right_clean), 180)
+    
+    left_tail = left_clean[-left_max_len:]
+    right_head = right_clean[:right_max_len]
     
     matcher = difflib.SequenceMatcher(None, left_tail, right_head)
     matching_blocks = matcher.get_matching_blocks()
     
-    tolerance = 6
-    best_overlap_len = 0
+    blocks = [b for b in matching_blocks if b.size > 0]
+    if not blocks:
+        return 0
+        
+    first_block = blocks[0]
+    last_block = blocks[-1]
     
-    # Check each block's offset as a candidate dominant offset
-    for candidate_block in matching_blocks:
-        if candidate_block.size == 0:
-            continue
-        candidate_offset = candidate_block.a - candidate_block.b
-        
-        # Gather all matching blocks consistent with the candidate offset
-        consistent_blocks = []
-        for block in matching_blocks:
-            if block.size == 0:
-                continue
-            offset = block.a - block.b
-            if abs(offset - candidate_offset) <= tolerance:
-                consistent_blocks.append(block)
-                
-        if not consistent_blocks:
-            continue
+    # Verify the first match starts near the beginning of the second chunk (b <= 15)
+    # and the last match ends near the end of the first chunk (a + size >= len(left_tail) - 15)
+    if first_block.b <= 15 and (last_block.a + last_block.size) >= len(left_tail) - 15:
+        total_match_size = sum(b.size for b in blocks)
+        if total_match_size >= 3:
+            return last_block.b + last_block.size
             
-        # Verify boundary coverage of the consistent block chain
-        min_b = min(block.b for block in consistent_blocks)
-        max_a_plus_size = max(block.a + block.size for block in consistent_blocks)
-        
-        # Must start near right_head's start and end near left_tail's end
-        if min_b <= 10 and max_a_plus_size >= len(left_tail) - 10:
-            overlap_len = max(block.b + block.size for block in consistent_blocks)
-            if overlap_len > best_overlap_len:
-                best_overlap_len = overlap_len
-                
-    return best_overlap_len
+    return 0
 
 
 def _chunks_time_overlap(prev_info: dict | None, current_info: dict | None) -> bool:
@@ -1255,15 +1236,15 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     best_severity = guardrail_result["severity"]
     severity_order = {"none": 0, "low": 1, "medium": 2, "high": 3}
     
-    # Chỉ chạy retry đúng 1 lần tại T=0.2 nếu độ nghiêm trọng >= medium
+    # Run retry exactly once at T=0.2 if severity >= medium
     if guardrail_result["is_suspicious"] and severity_order[best_severity] >= severity_order["medium"] and ENABLE_RETRY_HALLUCINATION:
-        r_temp = RETRY_TEMPERATURE  # Cố định ở mức 0.2
+        r_temp = RETRY_TEMPERATURE  # Fixed at 0.2
         _slog(conn_id, f"[Guardrail] Severity {best_severity} detected. Attempting single retry with temperature={r_temp}...")
         
         retry_transcript, retry_lang_retries, retry_chunk_telemetry = run_inference_with_config(trimmed_audio, temp_override=r_temp)
         retry_guardrail = _check_hallucination_guardrails(retry_transcript, trimmed_duration, conn_id, f"[Retry T={r_temp}] ")
         
-        # CHỈ áp dụng nếu độ nghiêm trọng của bản retry THẤP HƠN bản gốc
+        # ONLY adopt if the retry severity is LOWER than the original
         if severity_order[retry_guardrail["severity"]] < severity_order[best_severity]:
             _slog(conn_id, f"[Guardrail] Retry T={r_temp} improved severity: {best_severity} -> {retry_guardrail['severity']}. Adopting retry result.")
             best_transcript = retry_transcript
@@ -1272,7 +1253,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             lang_collapse_retries = retry_lang_retries
             chunk_telemetry = retry_chunk_telemetry
         else:
-            # Nếu tệ hơn hoặc bằng, bắt buộc chọn kết quả gốc chưa thử lại (Strict Rollback)
+            # If worse or equal, fall back to the original unretried result (Strict Rollback)
             _slog(conn_id, f"[Guardrail] Retry T={r_temp} did NOT improve severity ({best_severity} -> {retry_guardrail['severity']}). Selecting original unretried result.")
 
     transcript = best_transcript
