@@ -1,0 +1,30 @@
+{
+    "engine": "voxtral",
+    "timestamp_start": "20260521_131907",
+    "timestamp_end": "2026-05-21 13:35:34",
+    "runs_input": 1,
+    "runs_aggregated": 1,
+    "averages": {
+        "total_rtf": 1.2913636363636363,
+        "inference_rtf": 1.2748181818181819,
+        "cer_speech_only_percentage": 35.97333333333334,
+        "cer_all_files_percentage": 29.432727272727277,
+        "cer_percentage": 35.97333333333334,
+        "worst_file_cer_percentage": 51.23,
+        "worst_cer_speech_only_file": "media_149733_1769589919400.mp3",
+        "worst_cer_speech_only_value": 51.23,
+        "high_severity_hallucinations": 0,
+        "empty_on_speech_files": 0,
+        "acceptance_verdict": "REJECTED"
+    },
+    "details": [
+        {
+            "dir": "results\\21-05-2026_v3",
+            "avg_total_rtf": 1.2913636363636363,
+            "avg_inf_rtf": 1.2748181818181819,
+            "avg_cer_all_files": 0.29432727272727277,
+            "avg_cer_speech_only": 0.3597333333333334,
+            "avg_cer": 0.3597333333333334
+        }
+    ]
+}
