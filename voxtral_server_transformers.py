@@ -440,7 +440,7 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
 
 class RepetitionStoppingCriteria(StoppingCriteria):
     """Stopping criteria that interrupts generation if it detects n-gram loops."""
-    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5)):
+    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5, 6, 7, 8, 10, 12)):
         self.tokenizer = tokenizer
         self.threshold = threshold
         self.n_range = n_range
@@ -701,11 +701,11 @@ def _fuzzy_overlap_chars(left: str, right: str) -> int:
     first_block = blocks[0]
     last_block = blocks[-1]
     
-    # Verify the first match starts near the beginning of the second chunk (b <= 15)
-    # and the last match ends near the end of the first chunk (a + size >= len(left_tail) - 15)
-    if first_block.b <= 15 and (last_block.a + last_block.size) >= len(left_tail) - 15:
+    # Verify the first match starts near the beginning of the second chunk (b <= 6)
+    # and the last match ends near the end of the first chunk (a + size >= len(left_tail) - 6)
+    if first_block.b <= 6 and (last_block.a + last_block.size) >= len(left_tail) - 6:
         total_match_size = sum(b.size for b in blocks)
-        if total_match_size >= 3:
+        if total_match_size >= 10:
             return last_block.b + last_block.size
             
     return 0
