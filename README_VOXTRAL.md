@@ -52,6 +52,11 @@ Trước khi chạy, hãy copy `.env.example` thành `.env` và tùy chỉnh:
 | `--debug` | Bật log chi tiết trạng thái kết nối và keepalive. |
 | `--server-audio-dir [dir]` | Thư mục chứa audio trên Colab (để server tự load, không cần stream). |
 | `--llm-eval` | Bật đánh giá bằng LLM sau khi chạy xong. |
+| `--vad-commit` | Kích hoạt bộ lọc giọng nói VAD phía client để tự động kích hoạt `commit` khi ngắt giọng. |
+| `--vad-silence-ms [ms]` | Khoảng lặng tối thiểu (ms) để client phát hiện bạn đã nói xong và trigger commit. Mặc định: `500`. |
+| `--vad-max-len-ms [ms]` | Thời gian tối đa (ms) trước khi bắt buộc commit chunk kể cả khi bạn nói liên tục không nghỉ. Mặc định: `10000`. |
+| `--vad-min-len-ms [ms]` | Thời gian tối thiểu (ms) của âm thanh trước khi commit. Mặc định: `500`. |
+| `--vad-mode [N]` | Độ nhạy phát hiện giọng nói của WebRTC VAD (giá trị từ `0` đến `3`, với `3` là nhạy nhất với nhiễu môi trường). Mặc định: `2`. |
 
 ### Các trường hợp chạy phổ biến
 
@@ -72,6 +77,20 @@ python run_asr.py --audio audio/sample.mp3 --chunk-interval 0.1 --debug
 ```bash
 python run_asr.py --audio_dir audio_folder --chunk-interval 0.1 --llm-eval
 ```
+
+#### 4. Chạy Client với tính năng VAD và nhận diện Realtime
+
+Bắt đầu ghi âm và tự động gửi/cam kết (commit) dữ liệu giọng nói dựa trên khoảng lặng (VAD) bằng lệnh sau:
+
+```bash
+python run_asr.py --vad-commit --vad-silence-ms 500 --vad-max-len-ms 10000 --vad-mode 2
+```
+
+**Giải thích tham số:**
+- `--vad-commit`: Kích hoạt bộ lọc giọng nói VAD phía client để tự động kích hoạt `commit` khi bạn ngắt giọng.
+- `--vad-silence-ms 500`: Khoảng lặng tối thiểu (500 miligiây) để client phát hiện bạn đã nói xong và trigger commit gửi lên server Colab dịch.
+- `--vad-max-len-ms 10000`: Thời gian tối đa (10 giây) để bắt buộc commit chunk kể cả khi bạn nói liên tục không nghỉ.
+- `--vad-mode 2`: Độ nhạy phát hiện giọng nói của WebRTC VAD (giá trị từ `0` đến `3`, trong đó `3` là nhạy nhất với nhiễu môi trường).
 
 ---
 
