@@ -581,11 +581,10 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     # 2. Audio Encoder Time
     t_enc_start = time.time()
     with torch.inference_mode():
-        audio_outputs = model.get_audio_features(
+        _ = model.get_audio_features(
             input_features=inputs.get("input_features"),
             return_dict=True
         )
-        encoder_inputs_embeds = audio_outputs.pooler_output
     t_enc_end = time.time()
     enc_time = t_enc_end - t_enc_start
 
@@ -598,7 +597,7 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     generation_kwargs = dict(
         input_ids=inputs.get("input_ids"),
         attention_mask=inputs.get("attention_mask"),
-        encoder_inputs_embeds=encoder_inputs_embeds,
+        input_features=inputs.get("input_features"),
         num_delay_tokens=inputs.get("num_delay_tokens"),
         max_new_tokens=256,
         do_sample=do_sample,
