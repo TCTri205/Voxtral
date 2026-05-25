@@ -40,10 +40,10 @@ CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 0.5
 
 # Asymmetric VAD Padding Config
-VAD_PADDING_LEFT_MS = 200        # Giảm từ 300ms xuống 200ms
-VAD_PADDING_RIGHT_MS = 200       # Giảm từ 350ms xuống 200ms
-VAD_CHUNK_PADDING_LEFT_MS = 200  # Giảm từ 300ms xuống 200ms
-VAD_CHUNK_PADDING_RIGHT_MS = 200 # Giảm từ 300ms xuống 200ms
+VAD_PADDING_LEFT_MS = 300        # Restored to 300ms to prevent speech clipping
+VAD_PADDING_RIGHT_MS = 350       # Restored to 350ms to prevent speech clipping
+VAD_CHUNK_PADDING_LEFT_MS = 300  # Restored to 300ms to prevent speech clipping
+VAD_CHUNK_PADDING_RIGHT_MS = 300 # Restored to 300ms to prevent speech clipping
 
 # Silero VAD configuration (optimized for Japanese telephony business conversations)
 VAD_THRESHOLD = 0.45           # Lowered to capture quiet speech turns in telephony
@@ -925,10 +925,24 @@ DEFAULT_GLOSSARY = {
     r"先生管理科": "中央清算管理課",
     r"精算管理課": "中央清算管理課",
     r"ダンタク": "在宅",
+    r"どん卓": "在宅",
+    r"大宅": "在宅",
     r"アセプトジャパン": "アセットジャパン",
     r"生徒キャパン": "アセットジャパン",
+    r"生徒キャパ": "アセットジャパン",
     r"水建設\s*of\s*安田": "建設のエスタ",
     r"水建設の安田": "建設のエスタ",
+    r"河川さん": "カセさん",
+    r"デロコーゼロ": "050",
+    r"飛ばしている": "バルテス",
+    r"手掛け通りですね": "出かけておりますね",
+    r"AJテクノロジー": "AJテクノロジーズ",
+    r"三菱UFK銀行": "三菱UFJ銀行",
+    r"中原凛香": "中原凛花",
+    r"小野です": "トウノです",
+    r"小野様": "トウノ様",
+    r"島津です": "シカズです",
+    r"島津様": "シカズ様",
 }
 
 def _load_domain_glossary() -> dict:
