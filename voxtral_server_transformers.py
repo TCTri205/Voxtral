@@ -34,6 +34,7 @@ model_id_global = None
 # VAD global state
 vad_model = None
 vad_utils = None
+vad_lock = threading.Lock()
 
 # Chunked inference constants
 CHUNK_LIMIT_SEC = 15.0
@@ -333,14 +334,15 @@ def _trim_silence_with_vad(audio_np: np.ndarray, sample_rate: int = 16000):
         get_speech_timestamps = vad_utils[0]
 
         # Get speech timestamps with configured thresholds
-        speech_timestamps = get_speech_timestamps(
-            audio_tensor, 
-            vad_model, 
-            sampling_rate=sample_rate,
-            threshold=VAD_THRESHOLD,
-            min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
-            min_silence_duration_ms=VAD_MIN_SILENCE_DURATION_MS,
-        )
+        with vad_lock:
+            speech_timestamps = get_speech_timestamps(
+                audio_tensor, 
+                vad_model, 
+                sampling_rate=sample_rate,
+                threshold=VAD_THRESHOLD,
+                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                min_silence_duration_ms=VAD_MIN_SILENCE_DURATION_MS,
+            )
 
         if not speech_timestamps:
             # No speech detected
@@ -1146,14 +1148,15 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
         audio_tensor = torch.from_numpy(audio_to_process).to(torch.float32)
         get_speech_timestamps = vad_utils[0]
         
-        speech_timestamps = get_speech_timestamps(
-            audio_tensor, 
-            vad_model, 
-            sampling_rate=sample_rate,
-            threshold=VAD_THRESHOLD,
-            min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
-            min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS, # Use larger silence gap for chunking
-        )
+        with vad_lock:
+            speech_timestamps = get_speech_timestamps(
+                audio_tensor, 
+                vad_model, 
+                sampling_rate=sample_rate,
+                threshold=VAD_THRESHOLD,
+                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS, # Use larger silence gap for chunking
+            )
         
         chunks = _create_vad_aware_chunks(
             audio_to_process, 
@@ -1190,14 +1193,15 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             chunk_tensor = torch.from_numpy(chunk_audio).to(torch.float32)
             get_speech_timestamps = vad_utils[0]
             
-            chunk_speech = get_speech_timestamps(
-                chunk_tensor, 
-                vad_model, 
-                sampling_rate=16000,
-                threshold=VAD_CHUNK_SKIP_THRESHOLD,
-                min_speech_duration_ms=150, # Very sensitive to ensure we don't skip actual speech
-                min_silence_duration_ms=100,
-            )
+            with vad_lock:
+                chunk_speech = get_speech_timestamps(
+                    chunk_tensor, 
+                    vad_model, 
+                    sampling_rate=16000,
+                    threshold=VAD_CHUNK_SKIP_THRESHOLD,
+                    min_speech_duration_ms=150, # Very sensitive to ensure we don't skip actual speech
+                    min_silence_duration_ms=100,
+                )
             
             # Add spectral flatness check to ignore pure telephone line static/noise
             is_static_noise = False
@@ -1535,13 +1539,14 @@ async def realtime_endpoint(websocket: WebSocket):
             audio_np = np.frombuffer(commit_audio_bytes, dtype=np.int16).astype(np.float32) / 32767.0
             audio_tensor = torch.from_numpy(audio_np).to(torch.float32)
             get_speech_timestamps = vad_utils[0]
-            speech_timestamps = get_speech_timestamps(
-                audio_tensor, 
-                vad_model, 
-                sampling_rate=16000,
-                threshold=VAD_THRESHOLD,
-                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
-            )
+            with vad_lock:
+                speech_timestamps = get_speech_timestamps(
+                    audio_tensor, 
+                    vad_model, 
+                    sampling_rate=16000,
+                    threshold=VAD_THRESHOLD,
+                    min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                )
             
             if not speech_timestamps:
                 _slog(conn_id, f"process_inference_task: silence confirmed for commit_id={commit_id}")
@@ -1682,14 +1687,15 @@ async def realtime_endpoint(websocket: WebSocket):
                                 audio_np = np.frombuffer(check_bytes, dtype=np.int16).astype(np.float32) / 32767.0
                                 audio_tensor = torch.from_numpy(audio_np).to(torch.float32)
                                 get_speech_timestamps = vad_utils[0]
-                                speech_timestamps = get_speech_timestamps(
-                                    audio_tensor, 
-                                    vad_model, 
-                                    sampling_rate=16000,
-                                    threshold=VAD_THRESHOLD,
-                                    min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
-                                    min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS,
-                                )
+                                with vad_lock:
+                                    speech_timestamps = get_speech_timestamps(
+                                        audio_tensor, 
+                                        vad_model, 
+                                        sampling_rate=16000,
+                                        threshold=VAD_THRESHOLD,
+                                        min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                                        min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS,
+                                    )
                                 if speech_timestamps:
                                     speech_detected = True
                                     _slog(conn_id, f"incremental_VAD: speech_detected at {accumulated_bytes} bytes")
@@ -1717,14 +1723,15 @@ async def realtime_endpoint(websocket: WebSocket):
                             audio_np_vad = np.frombuffer(chunk_bytes, dtype=np.int16).astype(np.float32) / 32767.0
                             audio_tensor = torch.from_numpy(audio_np_vad).to(torch.float32)
                             get_speech_timestamps = vad_utils[0]
-                            speech_timestamps = get_speech_timestamps(
-                                audio_tensor, 
-                                vad_model, 
-                                sampling_rate=16000,
-                                threshold=VAD_THRESHOLD,
-                                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
-                                min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS,
-                            )
+                            with vad_lock:
+                                speech_timestamps = get_speech_timestamps(
+                                    audio_tensor, 
+                                    vad_model, 
+                                    sampling_rate=16000,
+                                    threshold=VAD_THRESHOLD,
+                                    min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+                                    min_silence_duration_ms=VAD_SEGMENT_SILENCE_MS,
+                                )
                             if speech_timestamps:
                                 speech_detected = True
                                 _slog(conn_id, "file_VAD: speech_detected in loaded path")
