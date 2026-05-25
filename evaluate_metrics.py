@@ -46,8 +46,8 @@ def main():
     report.append(f"HRS (Hallucination Rate on Silence): **{hrs:.3f} CPM**\n")
     
     report.append("## Detailed Results per File\n")
-    report.append("| File | Status | RTF (Inf) | HRS/RF | CER | Grade |")
-    report.append("| :--- | :--- | :--- | :--- | :--- | :--- |")
+    report.append("| File | Status | RTF (Inf) | HRS/RF | Raw CER | Adjusted CER | Grade |")
+    report.append("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |")
     
     total_cer = 0
     cer_file_count = 0
@@ -60,12 +60,15 @@ def main():
     # New standardized metrics lists
     cer_all_list = []
     cer_speech_only_list = []
+    raw_cer_all_list = []
+    raw_cer_speech_only_list = []
     
     for res in results:
         fname = res["file"]
         status = res.get("status", "success")
         rtf_inf = res.get("inference_rtf", 0)
         text = res.get("transcript", "")
+        raw_text = res.get("raw_transcript", text)
         
         # Calculate RF
         rf = calculate_rf(text)
@@ -74,6 +77,9 @@ def main():
         cer = "N/A"
         cer_speech_only = "N/A"
         cer_all_files = "N/A"
+        raw_cer_str = "N/A"
+        raw_cer_speech_only = "N/A"
+        raw_cer_all_files = "N/A"
         grade = "N/A"
         
         is_silence = any(kw in fname.lower() for kw in ["silence", "noise", "stochastic"])
@@ -84,28 +90,38 @@ def main():
             cer_total_files_with_gt += 1
             ref = normalize_japanese(gt_data[fname])
             hyp = normalize_japanese(text)
+            raw_hyp = normalize_japanese(raw_text)
             
             cer_val = calculate_cer(hyp, ref)
+            raw_cer_val = calculate_cer(raw_hyp, ref)
             
             # Add to standardized lists
             cer_all_list.append(cer_val)
+            raw_cer_all_list.append(raw_cer_val)
+            
             cer_all_files = f"{cer_val*100:.2f}%"
+            raw_cer_all_files = f"{raw_cer_val*100:.2f}%"
             
             if not is_silence:
                 cer_speech_only_list.append(cer_val)
+                raw_cer_speech_only_list.append(raw_cer_val)
                 cer_speech_only = f"{cer_val*100:.2f}%"
+                raw_cer_speech_only = f"{raw_cer_val*100:.2f}%"
             else:
                 cer_speech_only = "N/A (Silence/Noise)"
+                raw_cer_speech_only = "N/A (Silence/Noise)"
             
             is_empty_on_speech = (not hyp and ref)
             if is_empty_on_speech:
                 cer = f"{cer_val*100:.2f}% (Empty)"
+                raw_cer_str = f"{raw_cer_val*100:.2f}% (Empty)"
                 grade = "F (Fail)"
                 cer_excluded_files.append(fname)
                 empty_on_speech_count += 1
                 deletion_count += 1
             else:
                 cer = f"{cer_val*100:.2f}%"
+                raw_cer_str = f"{raw_cer_val*100:.2f}%"
                 if is_silence:
                     cer_silence_files.append(fname)
                 else:
@@ -120,7 +136,11 @@ def main():
         res["cer"] = cer
         res["cer_speech_only"] = cer_speech_only
         res["cer_all_files"] = cer_all_files
-        report.append(f"| `{fname}` | {status} | {rtf_inf:.3f} | {rf} | {cer} | {grade} |")
+        res["raw_cer"] = raw_cer_str
+        res["raw_cer_speech_only"] = raw_cer_speech_only
+        res["raw_cer_all_files"] = raw_cer_all_files
+        
+        report.append(f"| `{fname}` | {status} | {rtf_inf:.3f} | {rf} | {raw_cer_str} | {cer} | {grade} |")
 
     # Update results JSON with new metrics
     with open(args.results_json, "w", encoding="utf-8") as f:
@@ -147,10 +167,14 @@ def main():
     # New Unified Standardized Metrics Section
     avg_cer_all = (sum(cer_all_list) / len(cer_all_list)) * 100 if cer_all_list else 0.0
     avg_cer_speech = (sum(cer_speech_only_list) / len(cer_speech_only_list)) * 100 if cer_speech_only_list else 0.0
+    avg_raw_cer_all = (sum(raw_cer_all_list) / len(raw_cer_all_list)) * 100 if raw_cer_all_list else 0.0
+    avg_raw_cer_speech = (sum(raw_cer_speech_only_list) / len(raw_cer_speech_only_list)) * 100 if raw_cer_speech_only_list else 0.0
     
     report.append("\n## Standardized Metrics Summary")
-    report.append(f"- **Average CER (All Files - Silence/Noise Included)**: **{avg_cer_all:.2f}%** ({len(cer_all_list)} files)")
-    report.append(f"- **Average CER (Speech Only - Silence/Noise Excluded)**: **{avg_cer_speech:.2f}%** ({len(cer_speech_only_list)} files)")
+    report.append(f"- **Average Raw CER (All Files - Silence/Noise Included)**: **{avg_raw_cer_all:.2f}%** ({len(raw_cer_all_list)} files)")
+    report.append(f"- **Average Adjusted CER (All Files - Silence/Noise Included)**: **{avg_cer_all:.2f}%** ({len(cer_all_list)} files)")
+    report.append(f"- **Average Raw CER (Speech Only - Silence/Noise Excluded)**: **{avg_raw_cer_speech:.2f}%** ({len(raw_cer_speech_only_list)} files)")
+    report.append(f"- **Average Adjusted CER (Speech Only - Silence/Noise Excluded)**: **{avg_cer_speech:.2f}%** ({len(cer_speech_only_list)} files)")
 
     final_report = "\n".join(report)
     print(final_report)

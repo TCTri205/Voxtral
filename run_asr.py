@@ -208,6 +208,7 @@ async def transcription_client(
                 if data["type"] == "response.audio_transcript.done":
                     # Final transcript might be different from accumulated deltas if server cleans it up
                     final_transcript = data.get('transcript', '')
+                    raw_transcript = data.get('raw_transcript', final_transcript)
                     vad_config = data.get("vad_config")
                     vad_result = data.get("vad_result")
                     lang_collapse_retries = data.get("lang_collapse_retries")
@@ -255,6 +256,7 @@ async def transcription_client(
                 "file": os.path.basename(audio_path),
                 "status": "success",
                 "transcript": transcript,
+                "raw_transcript": raw_transcript,
                 "duration": round(duration, 2),
                 "connect_time": round(connect_time, 3),
                 "stream_time": round(stream_time, 2),

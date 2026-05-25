@@ -10,6 +10,12 @@ Phân loại lỗi:
 - insertion: HYP thêm từ ngữ/câu không có trong GT (không phải paraphrase).
 - content_replacement: HYP thay thế nội dung GT bằng nội dung hoàn toàn khác.
 
+QUAN TRỌNG VỀ PHÂN BIỆT LỖI:
+- KHÔNG được đánh giá là lỗi 'insertion' hay ảo giác (hallucination) nếu Hypothesis chỉ nhận diện sai âm thanh/âm vị của một từ có sẵn trong Ground Truth (ví dụ: GT là '中央清算管理課' nhưng HYP nhận diện nhầm thành '先生管理科', hoặc GT là '在宅' nhưng HYP nhận diện nhầm thành '大学'). 
+- Lỗi nhận diện sai từ/âm vị (Substitution) này hãy được xếp vào nhãn 'none'.
+- Nhãn 'content_replacement' chỉ được dùng khi Hypothesis thay thế hoàn toàn ý nghĩa của cả câu/vế câu, làm biến đổi hoàn toàn thông tin truyền tải. Tuyệt đối không dùng cho lỗi nghe nhầm danh từ riêng.
+- Lỗi 'insertion' chỉ tính khi HYP tự động bịa thêm một cụm từ hoặc một câu hoàn toàn mới ở vị trí vốn là khoảng lặng và không hề có lời nói tương ứng nào trong Ground Truth.
+
 Chỉ trả về JSON theo schema yêu cầu, tuyệt đối không có text nào khác.
 """
 

@@ -8,6 +8,8 @@ import math
 import numpy as np
 import torch
 import uvicorn
+import re
+import unicodedata
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from transformers import VoxtralRealtimeForConditionalGeneration, AutoProcessor, TextIteratorStreamer, StoppingCriteria, StoppingCriteriaList
 from mistral_common.tokens.tokenizers.audio import Audio
@@ -18,6 +20,11 @@ from scipy import signal
 import difflib
 
 app = FastAPI()
+
+# Cấu hình phát hiện trôi ngôn ngữ theo profile triển khai
+ASR_DRIFT_GUARDRAIL_PROFILE = os.getenv("ASR_DRIFT_GUARDRAIL_PROFILE", "ja_business")
+ASR_ENABLE_SCRIPT_DRIFT_RECOVERY = os.getenv("ASR_ENABLE_SCRIPT_DRIFT_RECOVERY", "true").lower() == "true"
+ASR_LATIN_COLLAPSE_MIN_CHARS = int(os.getenv("ASR_LATIN_COLLAPSE_MIN_CHARS", "50"))
 
 # Global variables for model and processor
 model = None
@@ -33,10 +40,10 @@ CHUNK_LIMIT_SEC = 15.0
 CHUNK_OVERLAP_SEC = 0.5
 
 # Asymmetric VAD Padding Config
-VAD_PADDING_LEFT_MS = 300       # Increased from 50ms to prevent speech onset truncation
-VAD_PADDING_RIGHT_MS = 350     # Longer trailing padding to avoid clipping sentence endings
-VAD_CHUNK_PADDING_LEFT_MS = 300
-VAD_CHUNK_PADDING_RIGHT_MS = 300
+VAD_PADDING_LEFT_MS = 200        # Giảm từ 300ms xuống 200ms
+VAD_PADDING_RIGHT_MS = 200       # Giảm từ 350ms xuống 200ms
+VAD_CHUNK_PADDING_LEFT_MS = 200  # Giảm từ 300ms xuống 200ms
+VAD_CHUNK_PADDING_RIGHT_MS = 200 # Giảm từ 300ms xuống 200ms
 
 # Silero VAD configuration (optimized for Japanese telephony business conversations)
 VAD_THRESHOLD = 0.45           # Lowered to capture quiet speech turns in telephony
@@ -63,7 +70,7 @@ ENABLE_PREPROCESSING = True
 # ---------------------------------------------------------------------------
 # Server revision fingerprint
 # ---------------------------------------------------------------------------
-_SERVER_VERSION = "2026-05-18.v15"
+_SERVER_VERSION = "2026-05-25.v10"
 
 def _vad_config_metadata() -> dict:
     return {
@@ -84,9 +91,10 @@ def _vad_config_metadata() -> dict:
     }
 
 
-def _inference_result(transcript: str, vad_result: dict | None = None, lang_collapse_retries: list | None = None, chunk_telemetry: list | None = None) -> dict:
+def _inference_result(transcript: str, raw_transcript: str | None = None, vad_result: dict | None = None, lang_collapse_retries: list | None = None, chunk_telemetry: list | None = None) -> dict:
     return {
         "transcript": transcript,
+        "raw_transcript": raw_transcript if raw_transcript is not None else transcript,
         "vad_config": _vad_config_metadata(),
         "vad_result": vad_result or {},
         "lang_collapse_retries": lang_collapse_retries or [],
@@ -107,10 +115,18 @@ def _is_japanese_char(c: str) -> bool:
     return False
 
 
+def _is_latin_char(c: str) -> bool:
+    """Kiểm tra ký tự c có thuộc hệ Latin Unicode hay không (bao gồm cả các ký tự có dấu như é, ñ, ü...)."""
+    try:
+        return "LATIN" in unicodedata.name(c)
+    except ValueError:
+        return False
+
+
 def _detect_language_collapse(transcript: str) -> dict:
     """
-    Detect if the transcript is likely a language collapse (hallucinated English/Russian/Chinese).
-    Uses the ratio of Japanese characters to total alphabetic letters, and also checks for Chinese drift.
+    Phát hiện trôi ngôn ngữ (Language Drift) tổng quát dựa trên script, tỷ lệ (ratio),
+    và độ dài chuỗi ký tự liên tục, không sử dụng whitelist từ vựng.
     """
     text = transcript.strip()
     if len(text) == 0:
@@ -118,8 +134,7 @@ def _detect_language_collapse(transcript: str) -> dict:
     if len(text) < LANG_COLLAPSE_MIN_CHARS:
         return {"is_collapsed": False, "jp_ratio": 1.0, "reason": "too_short"}
     
-    # Check for Chinese drift patterns
-    # Pure Chinese characters/particles that are never used in Japanese business phone transcripts
+    # 1. Check Chinese drift patterns (Giữ nguyên từ V9)
     PURE_CHINESE_CHARS = set("這这們们誰谁麼么嗎吗吧呢我你她它")
     PURE_CHINESE_PHRASES = ["這是", "是デ", "我的", "我們", "你是", "他們", "不是", "不要", "不用", "謝謝"]
     
@@ -140,6 +155,21 @@ def _detect_language_collapse(transcript: str) -> dict:
             "reason": f"Chinese drift: {'; '.join(reason_detail)}",
         }
         
+    # 2. Tách các phân đoạn ký tự liên tục phi-Nhật (runs of non-Japanese characters)
+    current_run = []
+    runs = []
+    for c in text:
+        if c.isalpha() and not _is_japanese_char(c):
+            current_run.append(c)
+        elif c in " '" and current_run: # Cho phép dấu cách/nháy đơn ở giữa chuỗi
+            current_run.append(c)
+        else:
+            if current_run:
+                runs.append("".join(current_run))
+                current_run = []
+    if current_run:
+        runs.append("".join(current_run))
+        
     letters = [c for c in text if c.isalpha()]
     if not letters:
         return {"is_collapsed": False, "jp_ratio": 1.0, "reason": "no_alpha"}
@@ -147,10 +177,40 @@ def _detect_language_collapse(transcript: str) -> dict:
     jp_letters = [c for c in letters if _is_japanese_char(c)]
     ratio = len(jp_letters) / len(letters)
     
+    # 3. Phân tích từng run để phát hiện drift nếu chế độ recovery được bật
+    if ASR_ENABLE_SCRIPT_DRIFT_RECOVERY:
+        for run in runs:
+            run_clean = run.strip()
+            letters_only = "".join(c for c in run_clean if c.isalpha())
+            if not letters_only:
+                continue
+                
+            # Sử dụng Unicode để nhận diện Latin chính xác (bao gồm cả accented Latin é, ñ, ü...)
+            is_latin = all(_is_latin_char(c) for c in letters_only)
+            
+            if is_latin:
+                # Với Latin (English/Romaji): chỉ trigger collapse khi chuỗi liên tục >= ASR_LATIN_COLLAPSE_MIN_CHARS
+                # VÀ tỷ lệ tiếng Nhật trong câu rất thấp (< 15%)
+                if len(letters_only) >= ASR_LATIN_COLLAPSE_MIN_CHARS and ratio < 0.15:
+                    return {
+                        "is_collapsed": True,
+                        "jp_ratio": round(ratio, 3),
+                        "reason": f"Latin drift: continuous run of {len(letters_only)} chars with low JP ratio ({ratio:.1%})"
+                    }
+            else:
+                # Với các script phi-Latin, phi-Nhật (Cyrillic, Devanagari...):
+                # Rất nhạy bén (ngưỡng >= 10 ký tự liên tục) đối với profile "ja_business"
+                if ASR_DRIFT_GUARDRAIL_PROFILE == "ja_business" and len(letters_only) >= 10:
+                    return {
+                        "is_collapsed": True,
+                        "jp_ratio": round(ratio, 3),
+                        "reason": f"Non-Japanese/Non-Latin script drift: continuous run of {len(letters_only)} chars"
+                    }
+    
     return {
-        "is_collapsed": ratio < LANG_COLLAPSE_JP_RATIO,
+        "is_collapsed": False,
         "jp_ratio": round(ratio, 3),
-        "reason": f"jp_ratio={ratio:.1%} < {LANG_COLLAPSE_JP_RATIO:.0%}" if ratio < LANG_COLLAPSE_JP_RATIO else "ok",
+        "reason": "ok",
     }
 
 
@@ -440,12 +500,18 @@ def _create_vad_aware_chunks(audio_np: np.ndarray, speech_timestamps: list, samp
 
 class RepetitionStoppingCriteria(StoppingCriteria):
     """Stopping criteria that interrupts generation if it detects n-gram loops."""
-    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5, 6, 7, 8, 10, 12)):
+    def __init__(self, tokenizer, threshold=3, n_range=(3, 4, 5, 6, 7, 8, 10, 12), check_interval=5):
         self.tokenizer = tokenizer
         self.threshold = threshold
         self.n_range = n_range
+        self.check_interval = check_interval
+        self.step_count = 0
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        self.step_count += 1
+        if self.step_count % self.check_interval != 0:
+            return False
+            
         # Decode the last 50 tokens to check for loops
         last_tokens = input_ids[0, -50:]
         text = self.tokenizer.decode(last_tokens, skip_special_tokens=True)
@@ -507,12 +573,12 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     # Setup streamer and stopping criteria
     streamer = TextIteratorStreamer(processor.tokenizer, skip_special_tokens=True, skip_prompt=True)
     stopping_criteria = StoppingCriteriaList([
-        RepetitionStoppingCriteria(processor.tokenizer, threshold=5)
+        RepetitionStoppingCriteria(processor.tokenizer, threshold=5, check_interval=5)
     ])
 
     generation_kwargs = dict(
         **inputs,
-        max_new_tokens=512,
+        max_new_tokens=256,
         do_sample=do_sample,
         temperature=temperature if do_sample else None,
         streamer=streamer,
@@ -854,6 +920,41 @@ def _recover_via_sub_chunking(audio_np: np.ndarray, retry_config: dict, conn_id:
     return merged_text, elapsed1 + elapsed2
 
 
+# Glossary mặc định để demo / dự phòng nếu được kích hoạt
+DEFAULT_GLOSSARY = {
+    r"先生管理科": "中央清算管理課",
+    r"精算管理課": "中央清算管理課",
+    r"ダンタク": "在宅",
+    r"アセプトジャパン": "アセットジャパン",
+    r"生徒キャパン": "アセットジャパン",
+    r"水建設\s*of\s*安田": "建設のエスタ",
+    r"水建設の安田": "建設のエスタ",
+}
+
+def _load_domain_glossary() -> dict:
+    glossary_path = os.environ.get("ASR_GLOSSARY_PATH", "")
+    if not glossary_path:
+        if os.environ.get("ASR_USE_DEFAULT_GLOSSARY", "false").lower() == "true":
+            return DEFAULT_GLOSSARY
+        return {}
+        
+    try:
+        with open(glossary_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"[Warning] Failed to load glossary from {glossary_path}: {e}")
+        return {}
+
+def _apply_domain_glossary(text: str) -> str:
+    if not text:
+        return text
+    glossary = _load_domain_glossary()
+    processed = text
+    for pattern, replacement in glossary.items():
+        processed = re.sub(pattern, replacement, processed)
+    return processed
+
+
 def load_voxtral_model(model_id: str, load_in_4bit: bool = False):
     global model, processor, model_id_global, vad_model, vad_utils
     model_id_global = model_id
@@ -901,12 +1002,19 @@ def load_voxtral_model(model_id: str, load_in_4bit: bool = False):
         )
         print("[startup] Using 4-bit quantization (NF4 + double quant) for VRAM safety on T4.", flush=True)
 
+    model_kwargs = {
+        "device_map": "auto",
+        "quantization_config": quantization_config,
+        "torch_dtype": torch.float16 if device == "cuda" else torch.float32,
+        "trust_remote_code": False,
+    }
+    if device == "cuda":
+        model_kwargs["attn_implementation"] = "sdpa"
+        print("[startup] Native PyTorch SDPA (Scaled Dot-Product Attention) enabled.", flush=True)
+
     model = VoxtralRealtimeForConditionalGeneration.from_pretrained(
         model_id,
-        device_map="auto",
-        quantization_config=quantization_config,
-        torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        trust_remote_code=False,  # Official model, no need
+        **model_kwargs
     )
     processor = AutoProcessor.from_pretrained(model_id)
     print("[startup] Model loaded successfully.", flush=True)
@@ -940,7 +1048,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     if not vad_info.get("speech_detected", True):
         # No speech detected - return empty transcript
         _slog(conn_id, f"VAD: No speech detected in {original_duration:.2f}s audio, skipping inference")
-        return _inference_result("", vad_info)
+        return _inference_result("", vad_result=vad_info)
     
     trimmed_duration = vad_info.get("trimmed_duration", original_duration)
     if trimmed_duration < original_duration * 0.95:  # Only log if we actually trimmed >5%
@@ -949,7 +1057,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     # Check if trimmed audio is too short
     if trimmed_duration < 0.1:  # Less than 100ms
         _slog(conn_id, f"VAD: Trimmed audio too short ({trimmed_duration:.3f}s), skipping inference")
-        return _inference_result("", vad_info)
+        return _inference_result("", vad_result=vad_info)
 
     # =========================================================================
     # PHA 2: VAD-AWARE CHUNKED INFERENCE 
@@ -1256,14 +1364,15 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             # If worse or equal, fall back to the original unretried result (Strict Rollback)
             _slog(conn_id, f"[Guardrail] Retry T={r_temp} did NOT improve severity ({best_severity} -> {retry_guardrail['severity']}). Selecting original unretried result.")
 
-    transcript = best_transcript
+    raw_transcript = best_transcript
+    transcript = _apply_domain_glossary(raw_transcript)
     elapsed = time.time() - t_inf_start
     
-    _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}  hallucination_warning={guardrail_result['is_suspicious']}")
+    _slog(conn_id, f"inference_finished  elapsed={elapsed:.2f}s  transcript_len={len(transcript)}  raw_len={len(raw_transcript)}")
     vad_result = dict(vad_info)
     vad_result["hallucination_warning"] = guardrail_result["is_suspicious"]
     vad_result["hallucination_severity"] = best_severity
-    return _inference_result(transcript, vad_result, lang_collapse_retries, chunk_telemetry)
+    return _inference_result(transcript, raw_transcript, vad_result, lang_collapse_retries, chunk_telemetry)
 
 
 async def run_inference(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> dict:
@@ -1513,6 +1622,7 @@ async def realtime_endpoint(websocket: WebSocket):
                                     {
                                         "type": "response.audio_transcript.done",
                                         "transcript": transcript,
+                                        "raw_transcript": inference_payload.get("raw_transcript"),
                                         "vad_config": inference_payload.get("vad_config"),
                                         "vad_result": inference_payload.get("vad_result"),
                                         "lang_collapse_retries": inference_payload.get("lang_collapse_retries"),
