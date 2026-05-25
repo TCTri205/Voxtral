@@ -91,7 +91,7 @@ def _vad_config_metadata() -> dict:
     }
 
 
-def _inference_result(transcript: str, raw_transcript: str | None = None, vad_result: dict | None = None, lang_collapse_retries: list | None = None, chunk_telemetry: list | None = None) -> dict:
+def _inference_result(transcript: str, raw_transcript: str | None = None, vad_result: dict | None = None, lang_collapse_retries: list | None = None, chunk_telemetry: list | None = None, pipeline_overhead: dict | None = None) -> dict:
     return {
         "transcript": transcript,
         "raw_transcript": raw_transcript if raw_transcript is not None else transcript,
@@ -99,6 +99,7 @@ def _inference_result(transcript: str, raw_transcript: str | None = None, vad_re
         "vad_result": vad_result or {},
         "lang_collapse_retries": lang_collapse_retries or [],
         "chunk_telemetry": chunk_telemetry or [],
+        "pipeline_overhead": pipeline_overhead or {},
     }
 
 
@@ -540,9 +541,12 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     """
     Run inference for a single chunk of audio.
     Internal helper used by _run_inference_sync for chunked processing.
+    Returns (transcript, elapsed, telemetry)
     """
     t0 = time.time()
 
+    # 1. Preprocessing Time
+    t_prep_start = time.time()
     # Build an Audio object the way the official example shows
     audio_obj = Audio(
         audio_array=audio_np,
@@ -566,9 +570,22 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     for k, v in inputs.items():
         if torch.is_floating_point(v):
             inputs[k] = v.to(model.dtype)
+    t_prep_end = time.time()
+    prep_time = t_prep_end - t_prep_start
 
     temperature = float(session_config.get("temperature", 0.0))
     do_sample = temperature > 0.0
+
+    # 2. Audio Encoder Time
+    t_enc_start = time.time()
+    with torch.inference_mode():
+        audio_outputs = model.get_audio_features(
+            input_features=inputs.get("input_features"),
+            return_dict=True
+        )
+        encoder_inputs_embeds = audio_outputs.pooler_output
+    t_enc_end = time.time()
+    enc_time = t_enc_end - t_enc_start
 
     # Setup streamer and stopping criteria
     streamer = TextIteratorStreamer(processor.tokenizer, skip_special_tokens=True, skip_prompt=True)
@@ -577,7 +594,10 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
     ])
 
     generation_kwargs = dict(
-        **inputs,
+        input_ids=inputs.get("input_ids"),
+        attention_mask=inputs.get("attention_mask"),
+        encoder_inputs_embeds=encoder_inputs_embeds,
+        num_delay_tokens=inputs.get("num_delay_tokens"),
         max_new_tokens=256,
         do_sample=do_sample,
         temperature=temperature if do_sample else None,
@@ -597,15 +617,23 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
             # End the streamer so the main loop doesn't hang
             streamer.end()
 
+    # 3. Decoder Generation Time & TTFT
+    t_gen_start = time.time()
     thread = threading.Thread(target=safe_generate)
     thread.start()
 
     # Collect tokens and call on_delta callback
     full_transcript = ""
+    first_token_time = None
     for new_text in streamer:
+        if first_token_time is None and new_text:
+            first_token_time = time.time() - t_gen_start
         if on_delta:
             on_delta(new_text)
         full_transcript += new_text
+
+    t_gen_end = time.time()
+    gen_time = t_gen_end - t_gen_start
 
     # Check for errors in the thread
     if error_container:
@@ -615,10 +643,25 @@ def _run_inference_for_chunk(audio_np: np.ndarray, session_config: dict, conn_id
 
     transcript = full_transcript.strip()
 
+    # Count tokens
+    total_tokens = len(processor.tokenizer.encode(transcript, add_special_tokens=False)) if (processor and hasattr(processor, 'tokenizer')) else 0
+    avg_token_latency = (gen_time / total_tokens * 1000) if total_tokens > 0 else 0.0
+
     elapsed = time.time() - t0
+    
+    telemetry = {
+        "preprocessing_time": prep_time,
+        "audio_encoder_time": enc_time,
+        "decoder_generation_time": gen_time,
+        "ttft": first_token_time if first_token_time is not None else 0.0,
+        "average_decoding_latency_per_token": avg_token_latency,
+        "total_tokens": total_tokens,
+        "elapsed": elapsed
+    }
+
     if elapsed >= 30.0:
         _slog(conn_id, f"WARNING: Generation took {elapsed:.2f}s (unusually slow chunk)")
-    return transcript, elapsed
+    return transcript, elapsed, telemetry
 
 
 def _detect_ngram_loops(text: str, n_range=(3, 4, 5), threshold=4) -> list:
@@ -900,11 +943,11 @@ def _recover_via_sub_chunking(audio_np: np.ndarray, retry_config: dict, conn_id:
     _slog(conn_id, f"[SubChunkRecovery] Part 1: {len(audio_part1)/sample_rate:.2f}s, Part 2: {len(audio_part2)/sample_rate:.2f}s")
     
     # Decode Part 1
-    text1, elapsed1 = _run_inference_for_chunk(audio_part1, retry_config, conn_id)
+    text1, elapsed1, _ = _run_inference_for_chunk(audio_part1, retry_config, conn_id)
     _slog(conn_id, f"[SubChunkRecovery] Part 1 decoded in {elapsed1:.2f}s: '{text1}'")
     
     # Decode Part 2
-    text2, elapsed2 = _run_inference_for_chunk(audio_part2, retry_config, conn_id)
+    text2, elapsed2, _ = _run_inference_for_chunk(audio_part2, retry_config, conn_id)
     _slog(conn_id, f"[SubChunkRecovery] Part 2 decoded in {elapsed2:.2f}s: '{text2}'")
     
     # Merge transcripts using overlap characters check
@@ -1036,7 +1079,7 @@ def load_voxtral_model(model_id: str, load_in_4bit: bool = False):
     print(f"[startup]   device: {next(model.parameters()).device}", flush=True)
 
 
-def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> dict:
+def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None, queue_wait_time: float = 0.0) -> dict:
     """Blocking inference — runs in a thread pool to keep the event loop free."""
     t0 = time.time()
     _slog(conn_id, f"inference_started  audio_bytes={len(audio_bytes)}")
@@ -1053,7 +1096,9 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     # =========================================================================
     # PHA 1: VAD-BASED TRIMMING
     # =========================================================================
+    t_vad_start = time.time()
     trimmed_audio, vad_info = _trim_silence_with_vad(audio_np, sample_rate=16000)
+    vad_trim_time = time.time() - t_vad_start
     
     # Log VAD results
     if vad_info.get("vad_error"):
@@ -1062,7 +1107,11 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     if not vad_info.get("speech_detected", True):
         # No speech detected - return empty transcript
         _slog(conn_id, f"VAD: No speech detected in {original_duration:.2f}s audio, skipping inference")
-        return _inference_result("", vad_result=vad_info)
+        return _inference_result("", raw_transcript="", vad_result=vad_info, pipeline_overhead={
+            "queue_wait_time": queue_wait_time,
+            "vad_trim_time": vad_trim_time,
+            "retry_elapsed_time": 0.0
+        })
     
     trimmed_duration = vad_info.get("trimmed_duration", original_duration)
     if trimmed_duration < original_duration * 0.95:  # Only log if we actually trimmed >5%
@@ -1071,13 +1120,20 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     # Check if trimmed audio is too short
     if trimmed_duration < 0.1:  # Less than 100ms
         _slog(conn_id, f"VAD: Trimmed audio too short ({trimmed_duration:.3f}s), skipping inference")
-        return _inference_result("", vad_result=vad_info)
+        return _inference_result("", raw_transcript="", vad_result=vad_info, pipeline_overhead={
+            "queue_wait_time": queue_wait_time,
+            "vad_trim_time": vad_trim_time,
+            "retry_elapsed_time": 0.0
+        })
 
     # =========================================================================
     # PHA 2: VAD-AWARE CHUNKED INFERENCE 
     # =========================================================================
+    total_retry_elapsed = 0.0
+
     def run_inference_with_config(audio_to_process, temp_override=None):
         """Helper to run inference with optional temperature override."""
+        nonlocal total_retry_elapsed
         if temp_override is not None:
             # Create a copy of session_config with modified temperature
             retry_config = session_config.copy()
@@ -1158,13 +1214,14 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 _slog(conn_id, f"Spectral Flatness check failed: {e}")
             
             skipped_due_to_silence = False
+            detail_telemetry = None
             if not chunk_speech or is_static_noise:
                 _slog(conn_id, f"Inference: Skipping Chunk {i+1} ({duration:.2f}s) due to silence/no speech/static noise")
                 chunk_transcript = ""
                 chunk_elapsed = 0.0
                 skipped_due_to_silence = True
             else:
-                chunk_transcript, chunk_elapsed = _run_inference_for_chunk(chunk_audio, retry_config, conn_id, current_on_delta)
+                chunk_transcript, chunk_elapsed, detail_telemetry = _run_inference_for_chunk(chunk_audio, retry_config, conn_id, current_on_delta)
             
             # Check for errored/suspicious chunks
             chunk_rtf = chunk_elapsed / duration if duration > 0 else 0.0
@@ -1188,6 +1245,7 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
             if needs_recovery:
                 _slog(conn_id, f"[RecoveryCheck] Chunk {i+1} ({duration:.2f}s) suspicious: collapse={has_collapse}, loops={has_loops}, empty={is_empty_on_speech}, elapsed={chunk_elapsed:.2f}s, rtf={chunk_rtf:.2f}. Running local sub-chunk recovery...")
                 recovered_transcript, recovery_elapsed = _recover_via_sub_chunking(chunk_info['audio_np'], retry_config, conn_id, sample_rate=16000)
+                total_retry_elapsed += recovery_elapsed
                 retry_count += 1
                 
                 # Check if recovered is healthy
@@ -1227,6 +1285,17 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                 "is_language_collapse": is_collapsed,
                 "keepalive_peak": int(chunk_elapsed // 5),
             }
+            if detail_telemetry:
+                telemetry.update(detail_telemetry)
+            else:
+                telemetry.update({
+                    "preprocessing_time": 0.0,
+                    "audio_encoder_time": 0.0,
+                    "decoder_generation_time": 0.0,
+                    "ttft": 0.0,
+                    "average_decoding_latency_per_token": 0.0,
+                    "total_tokens": 0,
+                })
             chunk_telemetry.append(telemetry)
             
             # Log high latency or keepalive spikes
@@ -1281,7 +1350,8 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                     
                     # Run retry inference
                     _slog(conn_id, f"[LangCollapse] Retrying group {group} with anchor {anchor_idx+1} ({len(retry_audio)/16000:.1f}s audio)")
-                    retry_transcript, retry_elapsed = _run_inference_for_chunk(retry_audio, temp_retry_config, conn_id)
+                    retry_transcript, retry_elapsed, _ = _run_inference_for_chunk(retry_audio, temp_retry_config, conn_id)
+                    total_retry_elapsed += retry_elapsed
                     retry_detection = _detect_language_collapse(retry_transcript)
                     
                     if not retry_detection["is_collapsed"]:
@@ -1314,7 +1384,8 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
                             
                             if len(group_audio) > cutoff_samples + int(0.5 * 16000): # Ensure at least 0.5s remains
                                 fallback_audio = group_audio[cutoff_samples:]
-                                fallback_transcript, _ = _run_inference_for_chunk(fallback_audio, temp_retry_config, conn_id)
+                                fallback_transcript, fallback_elapsed, _ = _run_inference_for_chunk(fallback_audio, temp_retry_config, conn_id)
+                                total_retry_elapsed += fallback_elapsed
                                 fallback_detection = _detect_language_collapse(fallback_transcript)
                                 
                                 if not fallback_detection["is_collapsed"]:
@@ -1386,12 +1457,18 @@ def _run_inference_sync(audio_bytes: bytes, session_config: dict, conn_id: str, 
     vad_result = dict(vad_info)
     vad_result["hallucination_warning"] = guardrail_result["is_suspicious"]
     vad_result["hallucination_severity"] = best_severity
-    return _inference_result(transcript, raw_transcript, vad_result, lang_collapse_retries, chunk_telemetry)
+    
+    pipeline_overhead = {
+        "queue_wait_time": queue_wait_time,
+        "vad_trim_time": vad_trim_time,
+        "retry_elapsed_time": total_retry_elapsed
+    }
+    return _inference_result(transcript, raw_transcript, vad_result, lang_collapse_retries, chunk_telemetry, pipeline_overhead)
 
 
-async def run_inference(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None) -> dict:
+async def run_inference(audio_bytes: bytes, session_config: dict, conn_id: str, on_delta=None, queue_wait_time: float = 0.0) -> dict:
     """Async wrapper that offloads blocking inference to a thread pool."""
-    return await asyncio.to_thread(_run_inference_sync, audio_bytes, session_config, conn_id, on_delta)
+    return await asyncio.to_thread(_run_inference_sync, audio_bytes, session_config, conn_id, on_delta, queue_wait_time)
 
 
 @app.get("/v1/models")
@@ -1428,6 +1505,138 @@ async def realtime_endpoint(websocket: WebSocket):
     speech_segments = []           # Collected speech timestamps
     segment_check_pos = 0          # Position in audio buffer for VAD check
     last_segment_active = False    # Is there an active speech segment currently open?
+
+    inference_lock = asyncio.Lock()
+
+    async def process_inference_task(commit_audio_bytes: bytes, current_config: dict, commit_id: int | None):
+        queue_start = time.time()
+        # Acquire inference lock to serialize GPU access per connection
+        async with inference_lock:
+            queue_wait_time = time.time() - queue_start
+            _slog(conn_id, f"inference_lock_acquired  commit_id={commit_id}  wait_time={queue_wait_time:.3f}s")
+            
+            delta_futures = []
+            def on_delta_callback(delta):
+                fut = asyncio.run_coroutine_threadsafe(
+                    _safe_send_text(
+                        websocket,
+                        json.dumps({
+                            "type": "response.audio_transcript.delta",
+                            "commit_id": commit_id,
+                            "delta": delta
+                        }),
+                        conn_id
+                    ),
+                    loop
+                )
+                delta_futures.append(fut)
+
+            # Check VAD for this block of audio to process
+            audio_np = np.frombuffer(commit_audio_bytes, dtype=np.int16).astype(np.float32) / 32767.0
+            audio_tensor = torch.from_numpy(audio_np).to(torch.float32)
+            get_speech_timestamps = vad_utils[0]
+            speech_timestamps = get_speech_timestamps(
+                audio_tensor, 
+                vad_model, 
+                sampling_rate=16000,
+                threshold=VAD_THRESHOLD,
+                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
+            )
+            
+            if not speech_timestamps:
+                _slog(conn_id, f"process_inference_task: silence confirmed for commit_id={commit_id}")
+                await _safe_send_text(
+                    websocket,
+                    json.dumps(
+                        {
+                            "type": "response.audio_transcript.done",
+                            "commit_id": commit_id,
+                            "transcript": "",
+                            "vad_config": _vad_config_metadata(),
+                            "vad_result": {
+                                "speech_detected": False,
+                                "original_duration": len(commit_audio_bytes) / 32000.0,
+                                "trimmed_duration": len(commit_audio_bytes) / 32000.0,
+                            },
+                            "pipeline_overhead": {
+                                "queue_wait_time": queue_wait_time,
+                                "vad_trim_time": 0.0,
+                                "retry_elapsed_time": 0.0
+                            }
+                        }
+                    ),
+                    conn_id
+                )
+                return
+
+            _slog(conn_id, f"process_inference_task: starting inference for commit_id={commit_id}")
+            inference_task = asyncio.create_task(
+                run_inference(commit_audio_bytes, current_config, conn_id, on_delta_callback, queue_wait_time)
+            )
+
+            # Send keepalive pings while inference is running
+            keepalive_n = 0
+            while not inference_task.done():
+                await asyncio.sleep(5)
+                if not inference_task.done():
+                    keepalive_n += 1
+                    success = await _safe_send_text(
+                        websocket,
+                        json.dumps({"type": "session.keepalive", "commit_id": commit_id}),
+                        conn_id
+                    )
+                    if not success:
+                        _slog(conn_id, f"keepalive_failed: connection lost for commit_id={commit_id}, cancelling inference")
+                        inference_task.cancel()
+                        break
+                    _slog(conn_id, f"keepalive_sent  commit_id={commit_id}  n={keepalive_n}")
+
+            try:
+                inference_payload = await inference_task
+            except asyncio.CancelledError:
+                _slog(conn_id, f"inference_cancelled  commit_id={commit_id}")
+                for f in delta_futures: f.cancel()
+                return
+            except Exception as e:
+                _slog(conn_id, f"inference_error  commit_id={commit_id}  {type(e).__name__}: {e}")
+                import traceback; traceback.print_exc()
+                await _safe_send_text(
+                    websocket,
+                    json.dumps({"type": "error", "commit_id": commit_id, "error": {"message": str(e)}}),
+                    conn_id
+                )
+                return
+
+            transcript = inference_payload.get("transcript", "")
+            
+            # Flush delta messages before sending done
+            if delta_futures:
+                active_futs = [asyncio.wrap_future(f) for f in delta_futures if not f.cancelled()]
+                if active_futs:
+                    await asyncio.gather(*active_futs, return_exceptions=True)
+
+            chunk_telemetry = inference_payload.get("chunk_telemetry", [])
+            keepalive_peak = max([c.get("keepalive_peak", 0) for c in chunk_telemetry]) if chunk_telemetry else keepalive_n
+
+            await _safe_send_text(
+                websocket,
+                json.dumps(
+                    {
+                        "type": "response.audio_transcript.done",
+                        "commit_id": commit_id,
+                        "transcript": transcript,
+                        "raw_transcript": inference_payload.get("raw_transcript"),
+                        "vad_config": inference_payload.get("vad_config"),
+                        "vad_result": inference_payload.get("vad_result"),
+                        "lang_collapse_retries": inference_payload.get("lang_collapse_retries"),
+                        "chunk_telemetry": chunk_telemetry,
+                        "keepalive_peak": keepalive_peak,
+                        "pipeline_overhead": inference_payload.get("pipeline_overhead"),
+                    }
+                ),
+                conn_id
+            )
+            _slog(conn_id, f"transcript_sent  commit_id={commit_id}  len={len(transcript)}")
 
     try:
         while True:
@@ -1536,140 +1745,29 @@ async def realtime_endpoint(websocket: WebSocket):
                     )
 
             elif msg_type == "input_audio_buffer.commit":
+                commit_id = data.get("commit_id")
                 buf_size = len(audio_buffer)
-                _slog(conn_id, f"commit_received  buffer_bytes={buf_size}  total_appended={accumulated_bytes}")
+                _slog(conn_id, f"commit_received  commit_id={commit_id}  buffer_bytes={buf_size}  total_appended={accumulated_bytes}")
                 if buf_size > 0:
-                    try:
-                        # Final VAD check if speech hasn't been detected yet (Priority 1)
-                        if not speech_detected:
-                            _slog(conn_id, "VAD: no speech detected in increments, running final check on full buffer")
-                            audio_np = np.frombuffer(audio_buffer, dtype=np.int16).astype(np.float32) / 32767.0
-                            audio_tensor = torch.from_numpy(audio_np).to(torch.float32)
-                            get_speech_timestamps = vad_utils[0]
-                            speech_timestamps = get_speech_timestamps(
-                                audio_tensor, 
-                                vad_model, 
-                                sampling_rate=16000,
-                                threshold=VAD_THRESHOLD,
-                                min_speech_duration_ms=VAD_MIN_SPEECH_DURATION_MS,
-                            )
-                            if speech_timestamps:
-                                speech_detected = True
-
-                        if not speech_detected:
-                            _slog(conn_id, "VAD: silence confirmed, skipping inference")
-                            await _safe_send_text(
-                                websocket,
-                                json.dumps(
-                                    {
-                                        "type": "response.audio_transcript.done",
-                                        "transcript": "",
-                                        "vad_config": _vad_config_metadata(),
-                                        "vad_result": {
-                                            "speech_detected": False,
-                                            "original_duration": len(audio_buffer) / 32000.0,
-                                            "trimmed_duration": len(audio_buffer) / 32000.0,
-                                        },
-                                    }
-                                ),
-                                conn_id
-                            )
-                        else:
-                            _slog(conn_id, "VAD: speech present, starting inference")
-                            # Launch inference in background thread
-                            delta_futures = []
-                            def on_delta_callback(delta):
-                                fut = asyncio.run_coroutine_threadsafe(
-                                    _safe_send_text(
-                                        websocket,
-                                        json.dumps({"type": "response.audio_transcript.delta", "delta": delta}),
-                                        conn_id
-                                    ),
-                                    loop
-                                )
-                                delta_futures.append(fut)
-
-                            inference_task = asyncio.create_task(
-                                run_inference(bytes(audio_buffer), session_config, conn_id, on_delta_callback)
-                            )
-                            # Send keepalive pings while inference is running
-                            # so ngrok / reverse proxies don't drop the connection
-                            keepalive_n = 0
-                            while not inference_task.done():
-                                await asyncio.sleep(5)
-                                if not inference_task.done():
-                                    keepalive_n += 1
-                                    success = await _safe_send_text(
-                                        websocket,
-                                        json.dumps({"type": "session.keepalive"}),
-                                        conn_id
-                                    )
-                                    if not success:
-                                        _slog(conn_id, "keepalive_failed: connection lost, cancelling inference")
-                                        inference_task.cancel()
-                                        break
-                                    _slog(conn_id, f"keepalive_sent  n={keepalive_n}")
-                            
-                            try:
-                                inference_payload = await inference_task
-                            except asyncio.CancelledError:
-                                _slog(conn_id, "inference_cancelled")
-                                # Cleanup delta futures if any
-                                for f in delta_futures: f.cancel()
-                                return # Socket is likely already closed
-
-                            transcript = inference_payload.get("transcript", "")
-                            
-                            # Flush delta messages before sending done
-                            if delta_futures:
-                                # Filter out cancelled futures
-                                active_futs = [asyncio.wrap_future(f) for f in delta_futures if not f.cancelled()]
-                                if active_futs:
-                                    await asyncio.gather(*active_futs, return_exceptions=True)
-                            
-                            chunk_telemetry = inference_payload.get("chunk_telemetry", [])
-                            keepalive_peak = max([c.get("keepalive_peak", 0) for c in chunk_telemetry]) if chunk_telemetry else keepalive_n
-                            
-                            await _safe_send_text(
-                                websocket,
-                                json.dumps(
-                                    {
-                                        "type": "response.audio_transcript.done",
-                                        "transcript": transcript,
-                                        "raw_transcript": inference_payload.get("raw_transcript"),
-                                        "vad_config": inference_payload.get("vad_config"),
-                                        "vad_result": inference_payload.get("vad_result"),
-                                        "lang_collapse_retries": inference_payload.get("lang_collapse_retries"),
-                                        "chunk_telemetry": chunk_telemetry,
-                                        "keepalive_peak": keepalive_peak,
-                                    }
-                                ),
-                                conn_id
-                            )
-                            _slog(conn_id, f"transcript_sent  len={len(transcript)}")
-                    except Exception as e:
-                        if isinstance(e, (WebSocketDisconnect, RuntimeError)):
-                            _slog(conn_id, f"inference_stopped_by_disconnect: {e}")
-                        else:
-                            _slog(conn_id, f"inference_error  {type(e).__name__}: {e}")
-                            import traceback; traceback.print_exc()
-                            await _safe_send_text(
-                                websocket,
-                                json.dumps({"type": "error", "error": {"message": str(e)}}),
-                                conn_id
-                            )
-                    finally:
-                        audio_buffer = bytearray()
-                        accumulated_bytes = 0
-                        speech_detected = False
-                        last_vad_pos = 0
+                    commit_audio_bytes = bytes(audio_buffer)
+                    # Reset buffer immediately to be non-blocking
+                    audio_buffer = bytearray()
+                    speech_detected = False
+                    last_vad_pos = 0
+                    segment_check_pos = 0
+                    
+                    # Launch task in background
+                    asyncio.create_task(
+                        process_inference_task(commit_audio_bytes, session_config.copy(), commit_id)
+                    )
                 else:
-                    _slog(conn_id, "commit_received  buffer_empty → sending empty transcript")
+                    _slog(conn_id, f"commit_received  commit_id={commit_id}  buffer_empty → sending empty transcript")
                     await _safe_send_text(
                         websocket,
                         json.dumps(
                             {
                                 "type": "response.audio_transcript.done",
+                                "commit_id": commit_id,
                                 "transcript": "",
                                 "vad_config": _vad_config_metadata(),
                                 "vad_result": {
@@ -1677,6 +1775,11 @@ async def realtime_endpoint(websocket: WebSocket):
                                     "original_duration": 0.0,
                                     "trimmed_duration": 0.0,
                                 },
+                                "pipeline_overhead": {
+                                    "queue_wait_time": 0.0,
+                                    "vad_trim_time": 0.0,
+                                    "retry_elapsed_time": 0.0
+                                }
                             }
                         ),
                         conn_id

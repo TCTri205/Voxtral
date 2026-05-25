@@ -90,6 +90,11 @@ async def transcription_client(
     log_file=None,
     server_audio_path=None,  # New argument for direct access
     language="ja",  # Language code for transcription
+    vad_commit=False,
+    vad_silence_ms=800,
+    vad_max_len_ms=10000,
+    vad_min_len_ms=500,
+    vad_mode=3,
 ):
     uri = build_realtime_uri(host, port)
     if debug:
@@ -129,10 +134,83 @@ async def transcription_client(
             }
             await websocket.send(json.dumps(config))
 
+            # Multi-Commit states
+            sent_commits = set()
+            completed_commits = set()
+            transcripts = {}
+            raw_transcripts = {}
+            chunk_telemetry_all = []
+            commit_send_times = {}
+            commit_wait_times = {}
+            keepalive_peak_all = 0
+            server_errors = []
+            vad_config = None
+            vad_result = None
+
+            async def receiver():
+                nonlocal keepalive_peak_all, vad_config, vad_result
+                while True:
+                    try:
+                        message = await websocket.recv()
+                        data = json.loads(message)
+                        msg_type = data.get("type")
+                        cid = data.get("commit_id") or 1
+
+                        if msg_type == "response.audio_transcript.delta":
+                            delta = data.get("delta", "")
+                            if delta:
+                                print(delta, end="", flush=True)
+                                
+                        elif msg_type == "response.audio_transcript.done":
+                            transcript = data.get("transcript", "")
+                            raw_transcript = data.get("raw_transcript", transcript)
+                            transcripts[cid] = transcript
+                            raw_transcripts[cid] = raw_transcript
+                            
+                            vad_config = data.get("vad_config")
+                            vad_result = data.get("vad_result")
+                            
+                            if cid in commit_send_times:
+                                wait_time = time.time() - commit_send_times[cid]
+                                commit_wait_times[cid] = wait_time
+                            
+                            # Store telemetries
+                            chunk_telemetry = data.get("chunk_telemetry", [])
+                            chunk_telemetry_all.extend(chunk_telemetry)
+                            
+                            keepalive_peak = data.get("keepalive_peak", 0)
+                            if keepalive_peak > keepalive_peak_all:
+                                keepalive_peak_all = keepalive_peak
+                                
+                            completed_commits.add(cid)
+                            if debug:
+                                log(f"\n[Receiver] Commit {cid} done. Transcript: '{transcript}'", log_file)
+                                
+                        elif msg_type == "session.keepalive":
+                            if debug:
+                                log(f"\n[Receiver] Keepalive received for commit {cid}", log_file)
+                                
+                        elif msg_type == "error":
+                            err_msg = data.get("error", {}).get("message", "Unknown error")
+                            server_errors.append(err_msg)
+                            log(f"\n[Server Error] commit {cid}: {err_msg}", log_file)
+                            completed_commits.add(cid) # Count as completed so client doesn't hang
+                            
+                    except websockets.exceptions.ConnectionClosed:
+                        break
+                    except Exception as e:
+                        log(f"\n[Receiver Exception]: {e}", log_file)
+                        break
+
+            # Start concurrent receiver task
+            receiver_task = asyncio.create_task(receiver())
+
             # 2. Stream Phase (or Path Phase)
             t_start_stream = time.time()
             chunks_sent = 0
             bytes_sent = 0
+            commit_id_counter = 0
+            has_uncommitted_audio = False
 
             if server_audio_path:
                 if debug:
@@ -141,10 +219,21 @@ async def transcription_client(
                     "type": "input_audio_buffer.from_path",
                     "path": server_audio_path
                 }))
-                # For accounting, we don't know the bytes until we receive the transcript,
-                # but we can just say "server-side"
                 bytes_sent = -1 
+                has_uncommitted_audio = True
             else:
+                # Initialize WebRTC VAD if enabled
+                vad = None
+                is_speaking = False
+                speech_duration_ms = 0
+                silence_duration_ms = 0
+
+                if vad_commit:
+                    import webrtcvad
+                    vad = webrtcvad.Vad(vad_mode)
+                    if debug:
+                        log(f" [VAD] Initialized WebRTC VAD with mode {vad_mode}", log_file)
+
                 chunk_size = int(16000 * 0.1) # 100ms
                 for i in range(0, len(audio), chunk_size):
                     chunk = audio[i:i + chunk_size]
@@ -158,125 +247,141 @@ async def transcription_client(
                     await websocket.send(json.dumps(payload))
                     chunks_sent += 1
                     bytes_sent += len(chunk_int16.tobytes())
+                    has_uncommitted_audio = True
 
                     if debug_frames:
                         print(f"[DBG {_ts()}] chunk={chunks_sent} bytes={bytes_sent}")
 
+                    # Run WebRTC VAD
+                    if vad is not None:
+                        frame_size = 640  # 20ms frame at 16kHz (320 samples * 2 bytes)
+                        chunk_bytes = chunk_int16.tobytes()
+                        frame_bytes_list = [chunk_bytes[offset:offset+frame_size] 
+                                            for offset in range(0, len(chunk_bytes), frame_size)]
+                        
+                        for frame_data in frame_bytes_list:
+                            if len(frame_data) == frame_size:
+                                is_speech = vad.is_speech(frame_data, 16000)
+                                if is_speech:
+                                    speech_duration_ms += 20
+                                    silence_duration_ms = 0
+                                    if speech_duration_ms >= vad_min_len_ms and not is_speaking:
+                                        is_speaking = True
+                                        if debug:
+                                            log(f"\n[VAD {_ts()}] Speech started", log_file)
+                                else:
+                                    silence_duration_ms += 20
+
+                        # Check triggers
+                        trigger_commit = False
+                        if is_speaking:
+                            if silence_duration_ms >= vad_silence_ms:
+                                trigger_commit = True
+                                if debug:
+                                    log(f"\n[VAD {_ts()}] Pause detected ({silence_duration_ms}ms silence >= {vad_silence_ms}ms)", log_file)
+                            elif speech_duration_ms >= vad_max_len_ms:
+                                trigger_commit = True
+                                if debug:
+                                    log(f"\n[VAD {_ts()}] Max duration reached ({speech_duration_ms}ms >= {vad_max_len_ms}ms)", log_file)
+
+                        if trigger_commit:
+                            commit_id_counter += 1
+                            await websocket.send(json.dumps({
+                                "type": "input_audio_buffer.commit", 
+                                "commit_id": commit_id_counter
+                            }))
+                            commit_send_times[commit_id_counter] = time.time()
+                            sent_commits.add(commit_id_counter)
+                            
+                            # Reset VAD state for next segment
+                            is_speaking = False
+                            speech_duration_ms = 0
+                            silence_duration_ms = 0
+                            has_uncommitted_audio = False
+
                     if chunk_interval > 0:
-                        # Precise pacing: wait until (t_start_stream + chunks_sent * chunk_interval)
+                        # Precise pacing
                         target_time = t_start_stream + (chunks_sent * chunk_interval)
                         sleep_time = target_time - time.time()
                         if sleep_time > 0:
                             await asyncio.sleep(sleep_time)
 
-            # 3. Commit Phase
-            await websocket.send(json.dumps({"type": "input_audio_buffer.commit"}))
+            # Final Commit if anything remains
+            if has_uncommitted_audio:
+                commit_id_counter += 1
+                await websocket.send(json.dumps({
+                    "type": "input_audio_buffer.commit", 
+                    "commit_id": commit_id_counter
+                }))
+                commit_send_times[commit_id_counter] = time.time()
+                sent_commits.add(commit_id_counter)
+
             t_committed = time.time()
             stream_time = t_committed - t_start_stream
 
-            # 4. Wait Phase
-            transcript = ""
-            vad_config = None
-            vad_result = None
-            keepalive_count = 0
-            last_msg_type = None
+            # 4. Wait Phase (Wait for all commits to complete)
             t_start_wait = time.time()
-
-            while True:
-                try:
-                    message = await asyncio.wait_for(websocket.recv(), timeout=response_timeout)
-                except asyncio.TimeoutError:
+            while len(completed_commits) < len(sent_commits):
+                if server_errors:
+                    return {
+                        "status": "failed",
+                        "error_type": "server_error",
+                        "error_message": "; ".join(server_errors)
+                    }
+                if time.time() - t_start_wait > response_timeout:
                     wait_elapsed = time.time() - t_start_wait
-                    log(f"\n[Timeout] {os.path.basename(audio_path)}: No result after {wait_elapsed:.2f}s", log_file)
+                    log(f"\n[Timeout] {os.path.basename(audio_path)}: Timeout waiting for commits ({len(completed_commits)}/{len(sent_commits)} done) after {wait_elapsed:.2f}s", log_file)
+                    receiver_task.cancel()
                     return {
                         "status": "failed",
                         "error_type": "timeout",
                         "wait_after_commit": round(wait_elapsed, 2),
-                        "keepalive_count": keepalive_count
+                        "keepalive_count": len(completed_commits)
                     }
+                await asyncio.sleep(0.1)
 
-                data = json.loads(message)
-                last_msg_type = data["type"]
+            t_received = time.time()
+            receiver_task.cancel()
+            await asyncio.gather(receiver_task, return_exceptions=True)
 
-                if data["type"] == "response.audio_transcript.delta":
-                    delta = data.get("delta", "")
-                    if delta:
-                        print(delta, end="", flush=True)
-                        transcript += delta
-                    continue
+            print() # Print empty line to finish output cleanly
 
-                if data["type"] == "response.audio_transcript.done":
-                    # Final transcript might be different from accumulated deltas if server cleans it up
-                    final_transcript = data.get('transcript', '')
-                    raw_transcript = data.get('raw_transcript', final_transcript)
-                    vad_config = data.get("vad_config")
-                    vad_result = data.get("vad_result")
-                    lang_collapse_retries = data.get("lang_collapse_retries")
-                    chunk_telemetry = data.get("chunk_telemetry")
-                    keepalive_peak = data.get("keepalive_peak")
-                    
-                    if not transcript:
-                        # If no deltas were received (e.g. silence), print the final result directly
-                        print(final_transcript, end="", flush=True)
-                    elif final_transcript and final_transcript != transcript:
-                        # Priority 2: If there's a discrepancy, show the final canonical version
-                        print(f"\n[Final] {final_transcript}", end="", flush=True)
-                    
-                    transcript = final_transcript
-                    print() # End of line
-                    if vad_config or vad_result:
-                        log(
-                            f"[VAD] {os.path.basename(audio_path)} config={json.dumps(vad_config, ensure_ascii=False)} result={json.dumps(vad_result, ensure_ascii=False)}",
-                            log_file,
-                        )
-                    t_received = time.time()
-                    break
+            # Gather final transcripts
+            all_completed_ids = sorted(list(completed_commits))
+            # Put spaces between segments for non-Japanese languages, but Japanese doesn't need spaces.
+            separator = "" if language == "ja" else " "
+            final_transcript = separator.join([transcripts.get(cid, "") for cid in all_completed_ids]).strip()
+            final_raw_transcript = separator.join([raw_transcripts.get(cid, "") for cid in all_completed_ids]).strip()
 
-                if data["type"] == "session.keepalive":
-                    keepalive_count += 1
-                    if keepalive_count > 250:
-                        log(f"\n[Warning] {os.path.basename(audio_path)}: High keepalive count ({keepalive_count}). Server might be struggling.", log_file)
-                    if debug:
-                        log(f"[DBG {_ts()}] keepalive #{keepalive_count}", log_file)
-                    continue
-
-                if data["type"] == "error":
-                    err_msg = data['error'].get('message', str(data['error']))
-                    log(f"\n[Server Error] {os.path.basename(audio_path)}: {err_msg}", log_file)
-                    return {
-                        "status": "failed",
-                        "error_type": "server_error",
-                        "error_message": err_msg
-                    }
-
-            wait_after_commit = t_received - t_committed
+            avg_wait_after_commit = sum(commit_wait_times.values()) / len(commit_wait_times) if commit_wait_times else 0.0
             total_time = t_received - start_time
             
             return {
                 "file": os.path.basename(audio_path),
                 "status": "success",
-                "transcript": transcript,
-                "raw_transcript": raw_transcript,
+                "transcript": final_transcript,
+                "raw_transcript": final_raw_transcript,
                 "duration": round(duration, 2),
                 "connect_time": round(connect_time, 3),
                 "stream_time": round(stream_time, 2),
-                "wait_after_commit": round(wait_after_commit, 3),
+                "wait_after_commit": round(avg_wait_after_commit, 3),
                 "total_time": round(total_time, 2),
                 "total_rtf": round(total_time / duration, 3) if duration > 0 else None,
-                "inference_rtf": round(wait_after_commit / duration, 3) if duration > 0 else None,
-                "keepalive_count": keepalive_count,
-                "keepalive_peak": keepalive_peak,
+                "inference_rtf": round(avg_wait_after_commit / duration, 3) if duration > 0 else None,
+                "keepalive_count": len(commit_wait_times),
+                "keepalive_peak": keepalive_peak_all,
                 "chunks_sent": chunks_sent,
                 "bytes_sent": bytes_sent,
                 "delay_ms": delay,
                 "vad_config": vad_config,
                 "vad_result": vad_result,
-                "lang_collapse_retries": lang_collapse_retries,
-                "chunk_telemetry": chunk_telemetry
+                "lang_collapse_retries": None,
+                "chunk_telemetry": chunk_telemetry_all
             }
 
     except Exception as e:
         log(f"\n[Client Error] {os.path.basename(audio_path)}: {e}", log_file)
+        import traceback; traceback.print_exc()
         return {
             "status": "failed",
             "error_type": "client_error",
@@ -302,6 +407,11 @@ async def main():
     parser.add_argument("--ground-truth", type=str, default="ground_truth.json", help="Path to ground_truth.json")
     parser.add_argument("--timestamps-dir", type=str, default="timestamps", help="Path to timestamps directory")
     parser.add_argument("--server-audio-dir", type=str, help="Directory on the server where audio files are located")
+    parser.add_argument("--vad-commit", action="store_true", help="Enable VAD-based commits (Japan Natural Speech Pause)")
+    parser.add_argument("--vad-silence-ms", type=int, default=800, help="VAD silence duration in ms to trigger commit")
+    parser.add_argument("--vad-max-len-ms", type=int, default=10000, help="Max utterance duration in ms to force commit")
+    parser.add_argument("--vad-min-len-ms", type=int, default=500, help="Min utterance duration in ms to trigger VAD speech state")
+    parser.add_argument("--vad-mode", type=int, default=3, help="WebRTC VAD aggressiveness mode (0-3)")
 
     args = parser.parse_args()
 
@@ -377,7 +487,12 @@ async def main():
             debug_frames=args.debug_frames,
             log_file=log_file,
             server_audio_path=server_path,
-            language=args.language
+            language=args.language,
+            vad_commit=args.vad_commit,
+            vad_silence_ms=args.vad_silence_ms,
+            vad_max_len_ms=args.vad_max_len_ms,
+            vad_min_len_ms=args.vad_min_len_ms,
+            vad_mode=args.vad_mode,
         )
         
         # Incremental Save
