@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+> [!WARNING]
+> **PROJECT TEMPORARILY PENDING**
+> This project is currently in a pending state. All configuration parameters and the visual interactive runner have been completed and verified under [voxtral_configurator.html](voxtral_configurator.html).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview

@@ -1,0 +1,36 @@
+{
+    "run_dir": "results\\25-05-2026_v2",
+    "model_used": "llama-3.3-70b-versatile",
+    "total_files": 10,
+    "evaluated_files": 10,
+    "total_speech_only_files": 8,
+    "with_gt_timestamped": 8,
+    "without_gt_timestamped": 2,
+    "cer_file_count": 10,
+    "cer_total_files": 10,
+    "cer_excluded_files": 0,
+    "empty_on_speech_count": 0,
+    "deletion_count": 0,
+    "hallucination_rate_all_files": 0.7,
+    "hallucination_rate_speech_only": 0.875,
+    "hallucination_rate": 0.7,
+    "manual_review_rate": 0.7,
+    "error_distribution": {
+        "insertion": 6,
+        "none": 3,
+        "content_replacement": 1
+    },
+    "severity_distribution": {
+        "medium": 5,
+        "none": 3,
+        "high": 1,
+        "low": 1
+    },
+    "existing_metrics": {
+        "avg_cer_all_files": "28.81%",
+        "avg_cer_speech_only": "36.01%",
+        "avg_cer": "28.81%",
+        "avg_inference_rtf": 1.254,
+        "hrs": 0.0
+    }
+}

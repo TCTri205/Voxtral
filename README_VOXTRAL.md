@@ -1,5 +1,9 @@
 # Hướng dẫn Thiết lập và Sử dụng Voxtral ASR Baseline
 
+> [!WARNING]
+> **DỰ ÁN TẠM THỜI PENDING (TEMPORARILY PENDING)**
+> Dự án này hiện tại đang tạm thời tạm ngưng phát triển (pending). Toàn bộ các thông số cấu hình và trình chạy giả lập thời gian thực trực quan đã được xây dựng hoàn thiện tại [voxtral_configurator.html](voxtral_configurator.html).
+
 Tài liệu này cung cấp hướng dẫn đầy đủ về cách thiết lập server, sử dụng client, và thực hiện quy trình đánh giá chất lượng (evaluation) cho mô hình Voxtral ASR.
 
 ## 1. Thành phần Hệ thống

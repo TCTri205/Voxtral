@@ -1,0 +1,2471 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voxtral ASR - Interactive Configuration Dashboard</title>
+    <!-- Outfit & Inter Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #09090b;
+            --bg-panel: rgba(24, 24, 27, 0.7);
+            --bg-input: #18181b;
+            --border-color: rgba(63, 63, 70, 0.4);
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            --accent-primary: #6366f1; /* Indigo */
+            --accent-glow: rgba(99, 102, 241, 0.15);
+            --accent-secondary: #a855f7; /* Purple */
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(9, 9, 11, 0.8);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1, h2, h3, h4 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        header .version-tag {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 9999px;
+            color: var(--accent-primary);
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        .main-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 2rem;
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 1024px) {
+            .main-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .panel-title {
+            font-size: 1.25rem;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .panel-title span {
+            color: var(--accent-primary);
+        }
+
+        /* Config Groups Tabs */
+        .tabs-header {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(9, 9, 11, 0.5);
+            padding: 0.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.6rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-primary);
+            color: var(--text-primary);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Input Controls */
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .control-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: -0.25rem;
+            line-height: 1.3;
+        }
+
+        .control-value {
+            font-family: monospace;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent-secondary);
+            background: rgba(168, 85, 247, 0.1);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        .input-slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .slider {
+            flex: 1;
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #27272a;
+            outline: none;
+            transition: background 0.3s;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--accent-primary);
+            transition: transform 0.1s;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-primary);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px var(--accent-primary);
+            transition: transform 0.1s;
+        }
+
+        .slider::-moz-range-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #27272a;
+            transition: .3s;
+            border-radius: 22px;
+            border: 1px solid var(--border-color);
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--accent-primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px var(--accent-glow);
+        }
+
+        .select-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.8rem center;
+            background-size: 1rem;
+        }
+
+        .select-input:focus {
+            border-color: var(--accent-primary);
+        }
+
+        /* Timeline Simulation */
+        .timeline-container {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            background: rgba(9, 9, 11, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .timeline-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .wave-canvas-container {
+            position: relative;
+            background: #121214;
+            border-radius: 8px;
+            height: 120px;
+            width: 100%;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .wave-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .timeline-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.75rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            color: var(--text-secondary);
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* Outputs Panel */
+        .output-card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: rgba(9, 9, 11, 0.3);
+            overflow: hidden;
+        }
+
+        .output-tab-header {
+            display: flex;
+            background: rgba(24, 24, 27, 0.9);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .output-tab-btn {
+            padding: 0.75rem 1.25rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .output-tab-btn.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .code-container {
+            position: relative;
+            padding: 1rem;
+        }
+
+        pre {
+            margin: 0;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            color: #e4e4e7;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: rgba(63, 63, 70, 0.6);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        /* Metric Grade Checker */
+        .grade-checker {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            background: rgba(99, 102, 241, 0.02);
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 640px) {
+            .grade-checker {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .checker-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .checker-results {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(9, 9, 11, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .result-grade {
+            font-size: 3rem;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0.25rem 0;
+            line-height: 1;
+        }
+
+        .result-tag {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .pass-badge {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .pass-badge.pass {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .pass-badge.fail {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .param-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .param-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Runner Specific Styling */
+        .runner-control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1.25rem;
+        }
+        @media (max-width: 640px) {
+            .runner-control-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .runner-btn {
+            padding: 0.65rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .runner-btn-primary {
+            background: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+        .runner-btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+        }
+        .runner-btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .runner-btn-danger:hover:not(:disabled) {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+        .runner-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .status-disconnected {
+            background: rgba(161, 161, 170, 0.1);
+            color: var(--text-secondary);
+            border: 1px solid rgba(161, 161, 170, 0.2);
+        }
+        .status-connected {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            animation: pulse-green 2s infinite;
+        }
+        .status-streaming {
+            background: rgba(168, 85, 247, 0.1);
+            color: var(--accent-secondary);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            animation: pulse-purple 1.5s infinite;
+        }
+        .status-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.2); }
+            70% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        @keyframes pulse-purple {
+            0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.3); }
+            70% { box-shadow: 0 0 0 8px rgba(168, 85, 247, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+        }
+        .file-select-box {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            background: rgba(9, 9, 11, 0.2);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .file-select-box:hover {
+            border-color: var(--accent-primary);
+            background: rgba(99, 102, 241, 0.03);
+        }
+        .file-select-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .file-select-text {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .file-select-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin-top: 0.25rem;
+        }
+        .transcription-panel {
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            height: 250px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            scroll-behavior: smooth;
+        }
+        .transcription-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+        .transcript-item {
+            border-left: 3px solid var(--accent-primary);
+            padding-left: 0.75rem;
+            margin-bottom: 0.25rem;
+            animation: fade-in 0.3s ease-out;
+        }
+        .transcript-meta {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.15rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .transcript-text {
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+        }
+        .transcript-item-active {
+            border-left-color: var(--accent-secondary);
+            animation: pulse-border 1.5s infinite;
+        }
+        .transcript-item-active .transcript-text {
+            color: #d8b4fe;
+            font-style: italic;
+        }
+        @keyframes pulse-border {
+            0% { border-left-color: var(--accent-secondary); }
+            50% { border-left-color: var(--accent-primary); }
+            100% { border-left-color: var(--accent-secondary); }
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .live-performance-dashboard {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            background: rgba(9, 9, 11, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        @media (max-width: 640px) {
+            .live-performance-dashboard {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .perf-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .perf-val {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+        }
+        .perf-label {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 0.2rem;
+        }
+        .console-container {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: #09090b;
+            overflow: hidden;
+        }
+        .console-header {
+            background: #18181b;
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .console-header:hover {
+            color: var(--text-primary);
+            background: #27272a;
+        }
+        .console-body {
+            height: 120px;
+            overflow-y: auto;
+            padding: 0.75rem;
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            color: #22c55e;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        .console-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .console-line .ts {
+            color: var(--text-secondary);
+        }
+        .console-line .direction-in {
+            color: #38bdf8;
+        }
+        .console-line .direction-out {
+            color: #c084fc;
+        }
+        .console-line .direction-sys {
+            color: #eab308;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Voxtral ASR <span>Configurator & Simulator</span></h1>
+        <div class="version-tag">Server: v2026-05-25.v10</div>
+    </header>
+
+    <div class="main-container">
+        <!-- LEFT: Inputs & Controls -->
+        <div class="panel">
+            <h2 class="panel-title">
+                <span>⚙️</span> Cấu hình Tham số
+            </h2>
+
+            <div class="tabs-header">
+                <button class="tab-btn active" id="btn-tab-client" onclick="switchTab('client')">Client-side VAD</button>
+                <button class="tab-btn" id="btn-tab-server" onclick="switchTab('server')">Server-side VAD</button>
+                <button class="tab-btn" id="btn-tab-exec" onclick="switchTab('exec')">Execution & Env</button>
+            </div>
+
+            <!-- TAB 1: Client VAD Settings -->
+            <div class="tab-content active" id="tab-client">
+                <div class="control-group">
+                    <div class="control-header">
+                        <label class="control-label" for="vad-commit">Kích hoạt Client-side VAD</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="vad-commit" onchange="updateAll()" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <span class="control-desc">Tự động phát hiện khoảng lặng bằng WebRTC VAD để trigger `commit` (gửi dịch) thay vì chờ hết file.</span>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-header">
+                        <label class="control-label" for="vad-silence-ms">VAD Silence Duration (ms)</label>
+                        <span class="control-value" id="val-vad-silence-ms">800 ms</span>
+                    </div>
+                    <span class="control-desc">Độ dài khoảng lặng liên tục tối thiểu để quyết định ngắt câu và trigger commit. Càng nhỏ thì nhận diện càng nhanh nhưng dễ ngắt vụn từ.</span>
+                    <div class="input-slider-container">
+                        <input type="range" id="vad-silence-ms" class="slider" min="200" max="3000" step="50" value="800" oninput="updateVal('vad-silence-ms'); updateAll();">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-header">
+                        <label class="control-label" for="vad-max-len-ms">Max Utterance Length (ms)</label>
+                        <span class="control-value" id="val-vad-max-len-ms">10000 ms</span>
+                    </div>
+                    <span class="control-desc">Thời lượng audio tối đa cho phép trong một chunk trước khi bắt buộc phải commit dịch (ngay cả khi người dùng nói liên tục không nghỉ).</span>
+                    <div class="input-slider-container">
+                        <input type="range" id="vad-max-len-ms" class="slider" min="3000" max="30000" step="500" value="10000" oninput="updateVal('vad-max-len-ms'); updateAll();">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-header">
+                        <label class="control-label" for="vad-min-len-ms">Min Utterance Length (ms)</label>
+                        <span class="control-value" id="val-vad-min-len-ms">500 ms</span>
+                    </div>
+                    <span class="control-desc">Thời lượng audio nói tối thiểu để WebRTC VAD chuyển từ trạng thái im lặng sang trạng thái nhận diện tiếng nói.</span>
+                    <div class="input-slider-container">
+                        <input type="range" id="vad-min-len-ms" class="slider" min="100" max="2000" step="50" value="500" oninput="updateVal('vad-min-len-ms'); updateAll();">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-header">
+                        <label class="control-label" for="vad-mode">Aggressiveness Mode (0-3)</label>
+                        <span class="control-value" id="val-vad-mode">3</span>
+                    </div>
+                    <span class="control-desc">Độ nhạy lọc nhiễu của WebRTC VAD. Số 3 là nhạy nhất (chỉ phát hiện voice thực sự rõ ràng, bỏ nhiễu), số 0 là nhạy kém nhất.</span>
+                    <div class="input-slider-container">
+                        <input type="range" id="vad-mode" class="slider" min="0" max="3" step="1" value="3" oninput="updateVal('vad-mode'); updateAll();">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Server VAD Settings -->
+            <div class="tab-content" id="tab-server">
+                <div class="param-grid">
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label class="control-label" for="VAD_THRESHOLD">VAD Threshold</label>
+                            <span class="control-value" id="val-VAD_THRESHOLD">0.45</span>
+                        </div>
+                        <input type="range" id="VAD_THRESHOLD" class="slider" min="0.1" max="0.9" step="0.05" value="0.45" oninput="updateVal('VAD_THRESHOLD'); updateAll();">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label class="control-label" for="VAD_PADDING_LEFT_MS">Pad Left (ms)</label>
+                            <span class="control-value" id="val-VAD_PADDING_LEFT_MS">300</span>
+                        </div>
+                        <input type="range" id="VAD_PADDING_LEFT_MS" class="slider" min="0" max="1000" step="50" value="300" oninput="updateVal('VAD_PADDING_LEFT_MS'); updateAll();">
+                    </div>
+                </div>
+
+                <div class="param-grid">
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label class="control-label" for="VAD_PADDING_RIGHT_MS">Pad Right (ms)</label>
+                            <span class="control-value" id="val-VAD_PADDING_RIGHT_MS">350</span>
+                        </div>
+                        <input type="range" id="VAD_PADDING_RIGHT_MS" class="slider" min="0" max="1000" step="50" value="350" oninput="updateVal('VAD_PADDING_RIGHT_MS'); updateAll();">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label class="control-label" for="VAD_SEGMENT_SILENCE_MS">Segment Silence (ms)</label>
+                            <span class="control-value" id="val-VAD_SEGMENT_SILENCE_MS">700</span>
+                        </div>
+                        <input type="range" id="VAD_SEGMENT_SILENCE_MS" class="slider" min="100" max="2000" step="50" value="700" oninput="updateVal('VAD_SEGMENT_SILENCE_MS'); updateAll();">
+                    </div>
+                </div>
+
+                <div class="param-grid">
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label class="control-label" for="CHUNK_LIMIT_SEC">Chunk Limit (s)</label>
+                            <span class="control-value" id="val-CHUNK_LIMIT_SEC">15 s</span>
+                        </div>
+                        <input type="range" id="CHUNK_LIMIT_SEC" class="slider" min="5" max="30" step="0.5" value="15" oninput="updateVal('CHUNK_LIMIT_SEC'); updateAll();">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label class="control-label" for="CHUNK_OVERLAP_SEC">Overlap (s)</label>
+                            <span class="control-value" id="val-CHUNK_OVERLAP_SEC">0.5 s</span>
+                        </div>
+                        <input type="range" id="CHUNK_OVERLAP_SEC" class="slider" min="0" max="5" step="0.1" value="0.5" oninput="updateVal('CHUNK_OVERLAP_SEC'); updateAll();">
+                    </div>
+                </div>
+
+                <div class="param-grid">
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label class="control-label" for="LANG_COLLAPSE_JP_RATIO">JP Collapse Ratio</label>
+                            <span class="control-value" id="val-LANG_COLLAPSE_JP_RATIO">0.55</span>
+                        </div>
+                        <input type="range" id="LANG_COLLAPSE_JP_RATIO" class="slider" min="0.2" max="0.9" step="0.05" value="0.55" oninput="updateVal('LANG_COLLAPSE_JP_RATIO'); updateAll();">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Tự động phục hồi Collapse</label>
+                        <div style="display: flex; align-items: center; height: 34px;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="LANG_COLLAPSE_RECOVERY" onchange="updateAll()" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-header">
+                        <label class="control-label">Bật Tiền xử lý (Preprocessing)</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="PREPROCESSING_ENABLED" onchange="updateAll()" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <span class="control-desc">Kích hoạt các bộ lọc audio ban đầu phía server trước khi đưa vào VAD và Whisper.</span>
+                </div>
+            </div>
+
+            <!-- TAB 3: Execution Settings -->
+            <div class="tab-content" id="tab-exec">
+                <div class="param-grid">
+                    <div class="control-group">
+                        <label class="control-label" for="exec-host">Host Server</label>
+                        <input type="text" id="exec-host" class="text-input" value="localhost" oninput="updateAll()">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label" for="exec-port">Cổng (Port)</label>
+                        <input type="number" id="exec-port" class="text-input" value="8000" oninput="updateAll()">
+                    </div>
+                </div>
+
+                <div class="param-grid">
+                    <div class="control-group">
+                        <label class="control-label" for="exec-language">Ngôn ngữ ASR</label>
+                        <select id="exec-language" class="select-input" onchange="updateAll()">
+                            <option value="ja" selected>Japanese (ja)</option>
+                            <option value="en">English (en)</option>
+                            <option value="vi">Vietnamese (vi)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label class="control-label" for="exec-interval">Chunk Interval (s)</label>
+                            <span class="control-value" id="val-exec-interval">0.1 s</span>
+                        </div>
+                        <input type="range" id="exec-interval" class="slider" min="0" max="1" step="0.05" value="0.1" oninput="updateVal('exec-interval'); updateAll();">
+                    </div>
+                </div>
+
+                <div class="param-grid">
+                    <div class="control-group">
+                        <label class="control-label" for="exec-delay">Inference Delay (ms)</label>
+                        <input type="number" id="exec-delay" class="text-input" value="480" oninput="updateAll()">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label" for="exec-timeout">Timeout phản hồi (s)</label>
+                        <input type="number" id="exec-timeout" class="text-input" value="30" oninput="updateAll()">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-header">
+                        <label class="control-label" for="exec-llm">Bật đánh giá bằng LLM</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="exec-llm" onchange="updateAll()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="input-slider-container" style="margin-top: 0.5rem;">
+                        <select id="exec-llm-model" class="select-input" onchange="updateAll()">
+                            <option value="llama-3.3-70b-versatile" selected>Llama 3.3 70B Versatile</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" for="exec-server-dir">Server Audio Dir (Không stream)</label>
+                    <input type="text" id="exec-server-dir" class="text-input" placeholder="Ví dụ: /content/audio" oninput="updateAll()">
+                    <span class="control-desc">Nếu cấu hình, server sẽ load trực tiếp từ thư mục này thay vì client stream qua socket (tốc độ cực nhanh).</span>
+                </div>
+            </div>
+
+            <!-- Target metrics evaluator tool -->
+            <div class="panel-title" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem; font-size: 1.1rem;">
+                <span>📊</span> Bộ Đánh giá Grade Đạt chuẩn
+            </div>
+            
+            <div class="grade-checker">
+                <div class="checker-inputs">
+                    <div class="control-group">
+                        <label class="control-label" style="font-size: 0.8rem;">HRS (Silence Hallucination CPM)</label>
+                        <input type="number" id="calc-hrs" class="text-input" value="0.2" step="0.1" min="0" oninput="runGradingCalculator()">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label" style="font-size: 0.8rem;">CER (Character Error Rate - %)</label>
+                        <input type="number" id="calc-cer" class="text-input" value="1.5" step="0.1" min="0" max="100" oninput="runGradingCalculator()">
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label" style="font-size: 0.8rem;">Inference RTF (Real-time Factor)</label>
+                        <input type="number" id="calc-rtf" class="text-input" value="0.08" step="0.01" min="0" oninput="runGradingCalculator()">
+                    </div>
+                </div>
+                <div class="checker-results">
+                    <span class="result-tag">ĐÁNH GIÁ CHẤT LƯỢNG</span>
+                    <div class="result-grade" id="calc-grade">A</div>
+                    <span class="result-tag" id="calc-grade-label">Good (Đạt chuẩn ASR)</span>
+                    <div class="pass-badge pass" id="calc-pass-badge">PASSED GATE</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Live Runner & Interactive Wave Simulation -->
+        <div class="panel" style="gap: 1.5rem;">
+            <h2 class="panel-title" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>⚡ Live ASR Runner & Simulator</span>
+                <span class="status-badge status-disconnected" id="runner-status">⬤ Off-line</span>
+            </h2>
+
+            <!-- Server Connection Panel -->
+            <div class="param-grid" style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color);">
+                <div class="control-group">
+                    <label class="control-label">WebSocket URL Server</label>
+                    <input type="text" id="runner-ws-url" class="text-input" value="ws://localhost:8000/v1/realtime" placeholder="ws://host:port/v1/realtime">
+                </div>
+                <div class="control-group" style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <button class="runner-btn runner-btn-primary" id="btn-ws-connect" onclick="connectWebSocket()" style="flex: 1;">Kết nối</button>
+                    <button class="runner-btn runner-btn-danger" id="btn-ws-disconnect" onclick="disconnectWebSocket()" disabled>Ngắt</button>
+                </div>
+            </div>
+
+            <!-- Audio Input Panel -->
+            <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1rem;">
+                <div class="runner-control-grid">
+                    <!-- File input -->
+                    <div class="control-group" style="margin-bottom: 0;">
+                        <label class="control-label">Chọn File Audio kiểm thử</label>
+                        <div class="file-select-box" onclick="document.getElementById('audio-file-input').click()">
+                            <div class="file-select-icon">🎵</div>
+                            <div class="file-select-text">Kéo thả hoặc Click để chọn file</div>
+                            <div class="file-select-name" id="audio-file-name">Chưa chọn file (.mp3, .wav,...)</div>
+                            <input type="file" id="audio-file-input" accept="audio/*" style="display: none;" onchange="handleAudioSelect(this)">
+                        </div>
+                    </div>
+                    <!-- Server side path option -->
+                    <div class="control-group" style="display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 0;">
+                        <div>
+                            <label class="control-label" style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" id="runner-use-server-path" onchange="toggleAudioSourceMode()">
+                                Load file trực tiếp từ Server (From Path)
+                            </label>
+                            <input type="text" id="runner-server-path" class="text-input" placeholder="Ví dụ: audio/media_149291_1769069811005.mp3" style="margin-top: 0.5rem;" disabled>
+                        </div>
+                        <div class="control-group" style="margin-bottom: 0; margin-top: 0.5rem;">
+                            <label class="control-label">Chế độ truyền tải dữ liệu</label>
+                            <select id="runner-transfer-mode" class="select-input">
+                                <option value="stream">Stream thời gian thực (100ms pacing)</option>
+                                <option value="fast">Fast Path (Gửi toàn bộ lập tức)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Execution button -->
+                <div style="display: flex; gap: 1rem;">
+                    <button class="runner-btn runner-btn-primary" id="btn-run-transcription" onclick="startASRRunner()" style="flex: 2; height: 45px; font-size: 1rem;" disabled>
+                        🚀 BẮT ĐẦU CHẠY TRANSCRIBE
+                    </button>
+                    <button class="runner-btn runner-btn-danger" id="btn-stop-transcription" onclick="stopASRRunner()" style="flex: 1; height: 45px;" disabled>
+                        ⏹ Dừng/Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Waveform simulation visualizer -->
+            <div class="timeline-container">
+                <div class="timeline-header">
+                    <div class="timeline-title" id="wave-title">
+                        🔊 Sơ đồ chia câu audio theo VAD của bạn
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                        Thời lượng: <span style="color: var(--accent-secondary);" id="wave-duration-lbl">18.0 giây</span>
+                    </div>
+                </div>
+
+                <div class="wave-canvas-container">
+                    <canvas id="wave-canvas" class="wave-canvas"></canvas>
+                </div>
+
+                <div class="timeline-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: rgba(34, 197, 94, 0.4); border: 1px solid var(--success);"></div>
+                        <span>Speech (Lời nói)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: rgba(63, 63, 70, 0.4); border: 1px solid var(--text-secondary);"></div>
+                        <span>Silence (Im lặng)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: rgba(168, 85, 247, 0.2); border: 2px dashed var(--accent-secondary);"></div>
+                        <span>Commit Point (Cắt câu)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Transcription Box -->
+            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <h3 class="panel-subtitle" style="margin: 0; font-size: 0.9rem; color: var(--text-primary);">📝 Kết quả nhận diện thời gian thực (Live Transcription)</h3>
+                <div class="transcription-panel" id="transcription-output">
+                    <div class="transcription-empty" id="transcription-empty">
+                        Chưa có dữ liệu. Hãy kết nối WebSocket, chọn file và nhấn "Bắt đầu chạy".
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Telemetry Dashboard -->
+            <div class="live-performance-dashboard">
+                <div class="perf-card">
+                    <span class="perf-val" id="telemetry-rtf">-</span>
+                    <span class="perf-label">Inference RTF</span>
+                </div>
+                <div class="perf-card">
+                    <span class="perf-val" id="telemetry-ttft">-</span>
+                    <span class="perf-label">TTFT (ms)</span>
+                </div>
+                <div class="perf-card">
+                    <span class="perf-val" id="telemetry-grade">-</span>
+                    <span class="perf-label">ASR Grade</span>
+                </div>
+                <div class="perf-card">
+                    <span class="perf-val" id="telemetry-chars">0</span>
+                    <span class="perf-label">Ký tự nhận diện</span>
+                </div>
+            </div>
+
+            <!-- Configuration Output Tabs -->
+            <h2 class="panel-title" style="margin-top: 0.5rem;">
+                <span>📄</span> Output Cấu hình Xuất bản
+            </h2>
+
+            <div class="output-card">
+                <div class="output-tab-header">
+                    <button class="output-tab-btn active" id="btn-out-cli" onclick="switchOutputTab('cli')">CLI Command</button>
+                    <button class="output-tab-btn" id="btn-out-env" onclick="switchOutputTab('env')">File .env</button>
+                    <button class="output-tab-btn" id="btn-out-json" onclick="switchOutputTab('json')">JSON Config Payload</button>
+                </div>
+
+                <!-- Output Content: CLI -->
+                <div class="code-container" id="out-cli">
+                    <button class="copy-btn" onclick="copyToClipboard('code-cli')">📋 Copy</button>
+                    <pre><code id="code-cli">python run_asr.py --audio audio/sample.mp3</code></pre>
+                </div>
+
+                <!-- Output Content: .env -->
+                <div class="code-container" id="out-env" style="display: none;">
+                    <button class="copy-btn" onclick="copyToClipboard('code-env')">📋 Copy</button>
+                    <pre><code id="code-env">VOXTRAL_HOST=localhost</code></pre>
+                </div>
+
+                <!-- Output Content: JSON Payload -->
+                <div class="code-container" id="out-json" style="display: none;">
+                    <button class="copy-btn" onclick="copyToClipboard('code-json')">📋 Copy</button>
+                    <pre><code id="code-json">{}</code></pre>
+                </div>
+            </div>
+
+            <!-- WebSocket Log Console -->
+            <div class="console-container">
+                <div class="console-header" onclick="toggleConsole()">
+                    <span>📟 System Logs Console</span>
+                    <span id="console-toggle-icon">▼ Collapse</span>
+                </div>
+                <div class="console-body" id="console-body">
+                    <div class="console-line"><span class="ts">[INFO]</span> Client initialized. Ready to test.</div>
+                </div>
+            </div>
+            
+            <div style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; padding: 0.5rem; background: rgba(99, 102, 241, 0.05); border-radius: 8px; border-left: 3px solid var(--accent-primary);">
+                💡 <strong>Gợi ý Tối ưu:</strong> Với tiếng Nhật, hãy đảm bảo <code>VAD_PADDING_RIGHT_MS</code> tối thiểu <strong>350ms - 500ms</strong> để không bị mất âm kết thúc thể lịch sự như <em>"desu"</em>, <em>"masu"</em>. Để tránh language collapse, hãy bật <code>LANG_COLLAPSE_RECOVERY=true</code> trên server.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for live ASR runner
+        let socket = null;
+        let float32PCMData = null; // 16kHz resampled mono Float32 PCM
+        let realAudioDurationSec = 0;
+        let speechSegments = []; // {startMs, endMs}
+        let commitPointsMs = [];
+        
+        let isStreamingActive = false;
+        let streamTimeoutId = null;
+        let streamStartTime = 0;
+        let currentStreamingPositionMs = 0;
+        let totalTranscribedChars = 0;
+        
+        let responseTimes = {}; // commitId -> send timestamp
+        let completedCommits = new Set();
+        let transcripts = {};
+        
+        let isConsoleCollapsed = false;
+
+        // Tab switching logic (left panel)
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            document.getElementById('btn-tab-' + tabId).classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+        }
+
+        // Output panel tab switching
+        function switchOutputTab(tabId) {
+            document.querySelectorAll('.output-tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-out-' + tabId).classList.add('active');
+            
+            document.getElementById('out-cli').style.display = 'none';
+            document.getElementById('out-env').style.display = 'none';
+            document.getElementById('out-json').style.display = 'none';
+            
+            document.getElementById('out-' + tabId).style.display = 'block';
+        }
+
+        // Slide value indicator updating
+        function updateVal(id) {
+            const input = document.getElementById(id);
+            const display = document.getElementById('val-' + id);
+            if (id.includes('ms')) {
+                display.innerText = input.value + ' ms';
+            } else if (id.includes('SEC') || id === 'exec-interval') {
+                display.innerText = input.value + ' s';
+            } else {
+                display.innerText = input.value;
+            }
+        }
+
+        // Audio Mock Waveform Data (18 seconds long sample)
+        const mockAudioSegments = [
+            { start: 0, end: 1500, isSpeech: false },
+            { start: 1500, end: 4500, isSpeech: true },
+            { start: 4500, end: 5800, isSpeech: false },
+            { start: 5800, end: 9200, isSpeech: true },
+            { start: 9200, end: 11000, isSpeech: false },
+            { start: 11000, end: 15500, isSpeech: true },
+            { start: 15500, end: 18000, isSpeech: false }
+        ];
+
+        // Core compilation & updating logic
+        function updateAll() {
+            // Read inputs
+            const vadCommit = document.getElementById('vad-commit').checked;
+            const vadSilenceMs = parseInt(document.getElementById('vad-silence-ms').value);
+            const vadMaxLenMs = parseInt(document.getElementById('vad-max-len-ms').value);
+            const vadMinLenMs = parseInt(document.getElementById('vad-min-len-ms').value);
+            const vadMode = parseInt(document.getElementById('vad-mode').value);
+
+            const serverThreshold = parseFloat(document.getElementById('VAD_THRESHOLD').value);
+            const serverPadLeft = parseInt(document.getElementById('VAD_PADDING_LEFT_MS').value);
+            const serverPadRight = parseInt(document.getElementById('VAD_PADDING_RIGHT_MS').value);
+            const serverSegSilence = parseInt(document.getElementById('VAD_SEGMENT_SILENCE_MS').value);
+            const serverChunkLimit = parseFloat(document.getElementById('CHUNK_LIMIT_SEC').value);
+            const serverOverlap = parseFloat(document.getElementById('CHUNK_OVERLAP_SEC').value);
+            const serverJpRatio = parseFloat(document.getElementById('LANG_COLLAPSE_JP_RATIO').value);
+            const serverRecovery = document.getElementById('LANG_COLLAPSE_RECOVERY').checked;
+            const serverPreprocess = document.getElementById('PREPROCESSING_ENABLED').checked;
+
+            const execHost = document.getElementById('exec-host').value.trim();
+            const execPort = document.getElementById('exec-port').value;
+            const execLang = document.getElementById('exec-language').value;
+            const execInterval = parseFloat(document.getElementById('exec-interval').value);
+            const execDelay = parseInt(document.getElementById('exec-delay').value);
+            const execTimeout = parseInt(document.getElementById('exec-timeout').value);
+            const execLlm = document.getElementById('exec-llm').checked;
+            const execLlmModel = document.getElementById('exec-llm-model').value;
+            const execServerDir = document.getElementById('exec-server-dir').value.trim();
+
+            // Sync connection textbox if not manually edited
+            const wsUrlInput = document.getElementById('runner-ws-url');
+            if (!wsUrlInput.dataset.manuallyEdited) {
+                wsUrlInput.value = `ws://${execHost}:${execPort}/v1/realtime`;
+            }
+
+            // 1. Generate CLI Command
+            let cliCommand = `python run_asr.py --audio audio/sample.mp3`;
+            if (execHost !== 'localhost') cliCommand += ` --host "${execHost}"`;
+            if (parseInt(execPort) !== 8000) cliCommand += ` --port ${execPort}`;
+            if (execLang !== 'ja') cliCommand += ` --language ${execLang}`;
+            if (execInterval !== 0.1) cliCommand += ` --chunk-interval ${execInterval}`;
+            if (execDelay !== 480) cliCommand += ` --delay ${execDelay}`;
+            if (execTimeout !== 30) cliCommand += ` --response-timeout ${execTimeout}`;
+            
+            if (vadCommit) {
+                cliCommand += ` --vad-commit`;
+                cliCommand += ` --vad-silence-ms ${vadSilenceMs}`;
+                cliCommand += ` --vad-max-len-ms ${vadMaxLenMs}`;
+                cliCommand += ` --vad-min-len-ms ${vadMinLenMs}`;
+                if (vadMode !== 3) cliCommand += ` --vad-mode ${vadMode}`;
+            }
+
+            if (execLlm) {
+                cliCommand += ` --llm-eval --llm-model "${execLlmModel}"`;
+            }
+
+            if (execServerDir) {
+                cliCommand += ` --server-audio-dir "${execServerDir}"`;
+            }
+
+            document.getElementById('code-cli').innerText = cliCommand;
+
+            // 2. Generate .env format
+            let envContent = `# Voxtral Environment Configuration
+VOXTRAL_HOST=${execHost}
+VOXTRAL_PORT=${execPort}
+VOXTRAL_DELAY=${execDelay}
+VOXTRAL_CHUNK_INTERVAL=${execInterval}
+VOXTRAL_RESPONSE_TIMEOUT=${execTimeout}
+VOXTRAL_LANGUAGE=${execLang}
+
+# Server side constants (inject to server configuration)
+VAD_THRESHOLD=${serverThreshold}
+VAD_PADDING_LEFT_MS=${serverPadLeft}
+VAD_PADDING_RIGHT_MS=${serverPadRight}
+VAD_SEGMENT_SILENCE_MS=${serverSegSilence}
+CHUNK_LIMIT_SEC=${serverChunkLimit}
+CHUNK_OVERLAP_SEC=${serverOverlap}
+LANG_COLLAPSE_JP_RATIO=${serverJpRatio}
+LANG_COLLAPSE_RECOVERY=${serverRecovery ? 'True' : 'False'}
+PREPROCESSING_ENABLED=${serverPreprocess ? 'True' : 'False'}
+`;
+            document.getElementById('code-env').innerText = envContent;
+
+            // 3. Generate JSON Payload (session.update websocket)
+            let jsonPayload = {
+                "type": "session.update",
+                "session": {
+                    "transcription_delay_ms": execDelay,
+                    "modalities": ["text"],
+                    "temperature": 0.0,
+                    "language": execLang,
+                    "vad_config": {
+                        "VAD_THRESHOLD": serverThreshold,
+                        "VAD_PADDING_LEFT_MS": serverPadLeft,
+                        "VAD_PADDING_RIGHT_MS": serverPadRight,
+                        "VAD_MIN_SPEECH_DURATION_MS": 250,
+                        "VAD_MIN_SILENCE_DURATION_MS": 100,
+                        "VAD_SEGMENT_SILENCE_MS": serverSegSilence,
+                        "CHUNK_LIMIT_SEC": serverChunkLimit,
+                        "CHUNK_OVERLAP_SEC": serverOverlap,
+                        "LANG_COLLAPSE_JP_RATIO": serverJpRatio,
+                        "LANG_COLLAPSE_RECOVERY": serverRecovery,
+                        "PREPROCESSING_ENABLED": serverPreprocess
+                    }
+                }
+            };
+            document.getElementById('code-json').innerText = JSON.stringify(jsonPayload, null, 4);
+
+            // 4. Update local VAD if real audio is loaded
+            if (float32PCMData) {
+                runLocalVAD();
+            }
+
+            // 5. Update the visual simulation canvas
+            drawSimulationCanvas();
+            checkRunnerReady();
+        }
+
+        // Detect user manual editing of the WS URL
+        document.getElementById('runner-ws-url').addEventListener('input', function() {
+            this.dataset.manuallyEdited = "true";
+            checkRunnerReady();
+        });
+
+        // Run Local VAD analysis using simple Float32 mono PCM RMS energy threshold
+        function runLocalVAD() {
+            if (!float32PCMData) return;
+
+            const vadCommit = document.getElementById('vad-commit').checked;
+            const silenceMs = parseInt(document.getElementById('vad-silence-ms').value);
+            const maxLenMs = parseInt(document.getElementById('vad-max-len-ms').value);
+            const minLenMs = parseInt(document.getElementById('vad-min-len-ms').value);
+            const vadMode = parseInt(document.getElementById('vad-mode').value);
+
+            speechSegments = [];
+            commitPointsMs = [];
+
+            if (!vadCommit) {
+                // Without client VAD, one final commit at the end of the audio file
+                commitPointsMs.push(Math.round(realAudioDurationSec * 1000));
+                return;
+            }
+
+            // 16kHz mono audio. 20ms frame = 320 samples
+            const frameSize = 320;
+            const sampleRate = 16000;
+            
+            // Map vadMode (0-3) to a suitable RMS threshold
+            const rmsThresholds = [0.005, 0.012, 0.024, 0.045];
+            const threshold = rmsThresholds[vadMode];
+
+            let isSpeaking = false;
+            let speechStartMs = 0;
+            let lastSpeechEndMs = 0;
+            let speechDurationMs = 0;
+            let silenceDurationMs = 0;
+
+            // First pass: extract raw speech blocks
+            let segmentStart = null;
+            for (let i = 0; i < float32PCMData.length; i += frameSize) {
+                const frame = float32PCMData.subarray(i, i + frameSize);
+                if (frame.length < frameSize) break;
+
+                let sumSquares = 0;
+                for (let j = 0; j < frame.length; j++) {
+                    sumSquares += frame[j] * frame[j];
+                }
+                const rms = Math.sqrt(sumSquares / frame.length);
+                const isSpeechFrame = rms > threshold;
+                const currentMs = Math.round((i / sampleRate) * 1000);
+
+                if (isSpeechFrame) {
+                    if (segmentStart === null) segmentStart = currentMs;
+                } else {
+                    if (segmentStart !== null) {
+                        speechSegments.push({ start: segmentStart, end: currentMs });
+                        segmentStart = null;
+                    }
+                }
+            }
+            if (segmentStart !== null) {
+                speechSegments.push({ start: segmentStart, end: Math.round(realAudioDurationSec * 1000) });
+            }
+
+            // Second pass: Simulate client-side VAD state machine logic
+            for (let i = 0; i < float32PCMData.length; i += frameSize) {
+                const frame = float32PCMData.subarray(i, i + frameSize);
+                if (frame.length < frameSize) break;
+
+                let sumSquares = 0;
+                for (let j = 0; j < frame.length; j++) {
+                    sumSquares += frame[j] * frame[j];
+                }
+                const rms = Math.sqrt(sumSquares / frame.length);
+                const isSpeechFrame = rms > threshold;
+                const currentMs = Math.round((i / sampleRate) * 1000);
+
+                if (isSpeechFrame) {
+                    if (!isSpeaking) {
+                        isSpeaking = true;
+                        speechStartMs = currentMs;
+                    }
+                    speechDurationMs += 20;
+                    silenceDurationMs = 0;
+                    lastSpeechEndMs = currentMs;
+                } else {
+                    silenceDurationMs += 20;
+                }
+
+                let triggerCommit = false;
+                if (isSpeaking) {
+                    const currentUtteranceLen = currentMs - speechStartMs;
+
+                    if (silenceDurationMs >= silenceMs) {
+                        const totalSpeechDetected = lastSpeechEndMs - speechStartMs;
+                        if (totalSpeechDetected >= minLenMs) {
+                            triggerCommit = true;
+                        }
+                        isSpeaking = false;
+                        speechDurationMs = 0;
+                        silenceDurationMs = 0;
+                    } else if (currentUtteranceLen >= maxLenMs) {
+                        triggerCommit = true;
+                        isSpeaking = false;
+                        speechDurationMs = 0;
+                        silenceDurationMs = 0;
+                    }
+                }
+
+                if (triggerCommit) {
+                    commitPointsMs.push(currentMs);
+                }
+            }
+        }
+
+        // Toggle file loading inputs based on options
+        function toggleAudioSourceMode() {
+            const useServerPath = document.getElementById('runner-use-server-path').checked;
+            document.getElementById('runner-server-path').disabled = !useServerPath;
+            checkRunnerReady();
+        }
+
+        // Audio File Select Handler
+        async function handleAudioSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            document.getElementById('audio-file-name').innerText = file.name;
+            logSystem(`Chọn file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB). Đang giải mã...`);
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+                logSystem("Đang decode AudioData bằng Web Audio API...");
+                const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+                
+                logSystem("Đang resample âm thanh về 16000Hz mono...");
+                const targetSampleRate = 16000;
+                const offlineCtx = new OfflineAudioContext(
+                    1,
+                    Math.ceil(audioBuffer.duration * targetSampleRate),
+                    targetSampleRate
+                );
+                
+                const source = offlineCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(offlineCtx.destination);
+                source.start();
+                
+                const resampledBuffer = await offlineCtx.startRendering();
+                float32PCMData = resampledBuffer.getChannelData(0);
+                realAudioDurationSec = resampledBuffer.duration;
+
+                // Normalize audio volume for optimal VAD detection
+                let maxVal = 0;
+                for (let i = 0; i < float32PCMData.length; i++) {
+                    const absVal = Math.abs(float32PCMData[i]);
+                    if (absVal > maxVal) maxVal = absVal;
+                }
+                if (maxVal > 0) {
+                    for (let i = 0; i < float32PCMData.length; i++) {
+                        float32PCMData[i] = float32PCMData[i] / maxVal;
+                    }
+                }
+                
+                logSystem(`Giải mã thành công: ${realAudioDurationSec.toFixed(2)} giây.`);
+                document.getElementById('wave-title').innerText = `🔊 Sơ đồ chia câu audio: ${file.name}`;
+                document.getElementById('wave-duration-lbl').innerText = `${realAudioDurationSec.toFixed(1)} giây`;
+                
+                updateAll();
+            } catch (err) {
+                logSystem(`[LỖI] Không thể giải mã file: ${err.message}`, 'error');
+                alert("Giải mã thất bại! Vui lòng thử file mp3/wav tiêu chuẩn.");
+            }
+        }
+
+        // Draw the waveform simulator canvas (using mock timeline or real waveform)
+        function drawSimulationCanvas() {
+            const canvas = document.getElementById('wave-canvas');
+            const ctx = canvas.getContext('2d');
+
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = canvas.parentElement.clientWidth * dpr;
+            canvas.height = canvas.parentElement.clientHeight * dpr;
+            ctx.scale(dpr, dpr);
+
+            const w = canvas.width / dpr;
+            const h = canvas.height / dpr;
+
+            ctx.fillStyle = '#121214';
+            ctx.fillRect(0, 0, w, h);
+
+            if (float32PCMData) {
+                // DRAWING REAL AUDIO WAVEFORM
+                const totalMs = realAudioDurationSec * 1000;
+                const scaleX = w / totalMs;
+
+                // 1. Draw base center line
+                ctx.strokeStyle = '#27272a';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, h/2);
+                ctx.lineTo(w, h/2);
+                ctx.stroke();
+
+                // 2. Draw Speech shading regions
+                speechSegments.forEach(seg => {
+                    const x1 = seg.start * scaleX;
+                    const x2 = seg.end * scaleX;
+                    ctx.fillStyle = 'rgba(34, 197, 94, 0.12)';
+                    ctx.fillRect(x1, 0, x2 - x1, h);
+                });
+
+                // 3. Draw Waveform Peaks
+                const samplesPerPixel = Math.floor(float32PCMData.length / w);
+                ctx.strokeStyle = 'rgba(161, 161, 170, 0.35)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+
+                for (let x = 0; x < w; x++) {
+                    const startSample = x * samplesPerPixel;
+                    const endSample = startSample + samplesPerPixel;
+                    let maxVal = 0;
+                    for (let s = startSample; s < endSample; s++) {
+                        if (s < float32PCMData.length) {
+                            const absVal = Math.abs(float32PCMData[s]);
+                            if (absVal > maxVal) maxVal = absVal;
+                        }
+                    }
+                    const amp = maxVal * (h * 0.4);
+                    ctx.moveTo(x, h/2 - amp);
+                    ctx.lineTo(x, h/2 + amp);
+                }
+                ctx.stroke();
+
+                // 4. Highlight current playhead streaming marker
+                if (isStreamingActive && currentStreamingPositionMs > 0) {
+                    const px = currentStreamingPositionMs * scaleX;
+                    
+                    // Shaded played area
+                    ctx.fillStyle = 'rgba(99, 102, 241, 0.15)';
+                    ctx.fillRect(0, 0, px, h);
+
+                    ctx.strokeStyle = '#ef4444';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(px, 0);
+                    ctx.lineTo(px, h);
+                    ctx.stroke();
+
+                    // Playhead indicator pin
+                    ctx.fillStyle = '#ef4444';
+                    ctx.beginPath();
+                    ctx.moveTo(px - 5, 0);
+                    ctx.lineTo(px + 5, 0);
+                    ctx.lineTo(px, 8);
+                    ctx.fill();
+                }
+
+                // 5. Draw Commit Lines
+                commitPointsMs.forEach((ms, index) => {
+                    const cx = ms * scaleX;
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 4]);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(cx, 0);
+                    ctx.lineTo(cx, h);
+                    ctx.stroke();
+                    ctx.setLineDash([]); 
+
+                    ctx.fillStyle = '#c084fc';
+                    ctx.font = '10px Inter';
+                    ctx.fillText(`Commit ${index+1} (${(ms/1000).toFixed(1)}s)`, cx + 5, 20);
+                });
+
+                // Time axis markers
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '9px monospace';
+                const step = totalMs > 60000 ? 10000 : 5000;
+                for (let t = 0; t <= totalMs; t += step) {
+                    const tx = t * scaleX;
+                    ctx.fillText(`${(t/1000).toFixed(0)}s`, tx + 2, h - 5);
+                }
+            } else {
+                // DRAWING MOCK TIMELINE
+                ctx.strokeStyle = '#27272a';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, h/2);
+                ctx.lineTo(w, h/2);
+                ctx.stroke();
+
+                const totalMs = 18000;
+                const scaleX = w / totalMs;
+
+                const vadCommit = document.getElementById('vad-commit').checked;
+                const silenceMs = parseInt(document.getElementById('vad-silence-ms').value);
+                const maxLenMs = parseInt(document.getElementById('vad-max-len-ms').value);
+                const minLenMs = parseInt(document.getElementById('vad-min-len-ms').value);
+
+                mockAudioSegments.forEach(seg => {
+                    const x1 = seg.start * scaleX;
+                    const x2 = seg.end * scaleX;
+                    const width = x2 - x1;
+
+                    if (seg.isSpeech) {
+                        ctx.fillStyle = 'rgba(34, 197, 94, 0.08)';
+                        ctx.fillRect(x1, 0, width, h);
+                    } else {
+                        ctx.fillStyle = 'rgba(39, 39, 42, 0.1)';
+                        ctx.fillRect(x1, 0, width, h);
+                    }
+
+                    ctx.strokeStyle = seg.isSpeech ? 'rgba(34, 197, 94, 0.6)' : 'rgba(161, 161, 170, 0.25)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    
+                    const step = 4;
+                    for (let px = x1; px < x2; px += step) {
+                        let amp = 0;
+                        if (seg.isSpeech) {
+                            const timeCoeff = px / scaleX / 1000;
+                            amp = (Math.sin(timeCoeff * 50) * Math.cos(timeCoeff * 13) + Math.sin(timeCoeff * 123) * 0.5) * 25 + 5;
+                            amp = Math.min(45, Math.max(5, Math.abs(amp)));
+                        } else {
+                            amp = Math.random() * 4 + 2;
+                        }
+                        ctx.moveTo(px, h/2 - amp);
+                        ctx.lineTo(px, h/2 + amp);
+                    }
+                    ctx.stroke();
+                });
+
+                if (vadCommit) {
+                    let isSpeaking = false;
+                    let speechStart = 0;
+                    let lastSpeechEnd = 0;
+                    let currentUtteranceLen = 0;
+
+                    const stepMs = 20;
+                    const commitPoints = [];
+
+                    for (let ms = 0; ms <= totalMs; ms += stepMs) {
+                        const currentSeg = mockAudioSegments.find(s => ms >= s.start && ms < s.end);
+                        const isFrameSpeech = currentSeg ? currentSeg.isSpeech : false;
+
+                        if (isFrameSpeech) {
+                            if (!isSpeaking) {
+                                isSpeaking = true;
+                                speechStart = ms;
+                            }
+                            currentUtteranceLen = ms - speechStart;
+                            lastSpeechEnd = ms;
+                        } else {
+                            if (isSpeaking) {
+                                const silenceDuration = ms - lastSpeechEnd;
+                                const totalSpeechDetected = lastSpeechEnd - speechStart;
+
+                                if (silenceDuration >= silenceMs) {
+                                    if (totalSpeechDetected >= minLenMs) {
+                                        commitPoints.push(ms);
+                                    }
+                                    isSpeaking = false;
+                                    currentUtteranceLen = 0;
+                                }
+                            }
+                        }
+
+                        if (isSpeaking && currentUtteranceLen >= maxLenMs) {
+                            commitPoints.push(ms);
+                            speechStart = ms;
+                            currentUtteranceLen = 0;
+                        }
+                    }
+
+                    commitPoints.forEach((ms, index) => {
+                        const cx = ms * scaleX;
+                        ctx.strokeStyle = '#a855f7';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([5, 4]);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(cx, 0);
+                        ctx.lineTo(cx, h);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+
+                        ctx.fillStyle = '#a855f7';
+                        ctx.font = '10px Inter';
+                        ctx.fillText(`Commit ${index+1} (${(ms/1000).toFixed(1)}s)`, cx + 5, 20);
+                    });
+                } else {
+                    const cx = totalMs * scaleX;
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 4]);
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 3, 0);
+                    ctx.lineTo(cx - 3, h);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    
+                    ctx.fillStyle = '#a855f7';
+                    ctx.font = '10px Inter';
+                    ctx.fillText('Commit 1 (Hết File: 18.0s)', cx - 140, 20);
+                }
+
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.font = '9px monospace';
+                for (let t = 0; t <= totalMs; t += 3000) {
+                    const tx = t * scaleX;
+                    ctx.fillText(`${t/1000}s`, tx + 2, h - 5);
+                }
+            }
+        }
+
+        // Check if Runner is ready to run
+        function checkRunnerReady() {
+            const isConnected = socket !== null && socket.readyState === WebSocket.OPEN;
+            const useServerPath = document.getElementById('runner-use-server-path').checked;
+            const serverPathVal = document.getElementById('runner-server-path').value.trim();
+            const hasAudio = float32PCMData !== null;
+            
+            const btnRun = document.getElementById('btn-run-transcription');
+            
+            if (isConnected && (hasAudio || (useServerPath && serverPathVal.length > 0))) {
+                btnRun.disabled = false;
+            } else {
+                btnRun.disabled = true;
+            }
+        }
+
+        // WebSocket Connection handling
+        function connectWebSocket() {
+            const wsUrl = document.getElementById('runner-ws-url').value.trim();
+            logSystem(`Đang kết nối đến ${wsUrl}...`);
+            
+            const statusBadge = document.getElementById('runner-status');
+            statusBadge.className = 'status-badge status-streaming';
+            statusBadge.innerText = '⬤ Connecting';
+
+            try {
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = function(event) {
+                    logSystem(`WebSocket connected! Server: ${wsUrl}`);
+                    statusBadge.className = 'status-badge status-connected';
+                    statusBadge.innerText = '⬤ Connected';
+                    
+                    document.getElementById('btn-ws-connect').disabled = true;
+                    document.getElementById('btn-ws-disconnect').disabled = false;
+                    
+                    // Send session update automatically
+                    const sessionConfig = JSON.parse(document.getElementById('code-json').innerText);
+                    socket.send(JSON.stringify(sessionConfig));
+                    logWebSocketOut(sessionConfig);
+                    
+                    checkRunnerReady();
+                };
+                
+                socket.onmessage = function(event) {
+                    let data;
+                    try {
+                        data = JSON.parse(event.data);
+                    } catch (e) {
+                        logWebSocketIn(event.data);
+                        return;
+                    }
+                    
+                    logWebSocketIn(data);
+                    handleIncomingWSMessage(data);
+                };
+                
+                socket.onclose = function(event) {
+                    logSystem(`WebSocket connection closed (code: ${event.code}, reason: ${event.reason || 'none'}).`);
+                    resetWebSocketUI();
+                };
+                
+                socket.onerror = function(error) {
+                    logSystem(`[ERROR] WebSocket error: ${error.message || 'connection failed'}`, 'error');
+                    statusBadge.className = 'status-badge status-error';
+                    statusBadge.innerText = '⬤ Error';
+                };
+                
+            } catch (err) {
+                logSystem(`[LỖI EXCEPTION] Kết nối thất bại: ${err.message}`, 'error');
+                resetWebSocketUI();
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (socket) {
+                logSystem("Đang ngắt kết nối WebSocket...");
+                socket.close();
+            }
+        }
+
+        function resetWebSocketUI() {
+            socket = null;
+            const statusBadge = document.getElementById('runner-status');
+            statusBadge.className = 'status-badge status-disconnected';
+            statusBadge.innerText = '⬤ Off-line';
+            
+            document.getElementById('btn-ws-connect').disabled = false;
+            document.getElementById('btn-ws-disconnect').disabled = true;
+            
+            stopASRRunner();
+            checkRunnerReady();
+        }
+
+        // Live ASR Runner start/stop
+        function startASRRunner() {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                alert("Vui lòng kết nối WebSocket trước!");
+                return;
+            }
+
+            // Clear output & telemetry UI
+            const outputPanel = document.getElementById('transcription-output');
+            outputPanel.innerHTML = '';
+            totalTranscribedChars = 0;
+            document.getElementById('telemetry-rtf').innerText = '-';
+            document.getElementById('telemetry-ttft').innerText = '-';
+            document.getElementById('telemetry-grade').innerText = '-';
+            document.getElementById('telemetry-chars').innerText = '0';
+            
+            completedCommits.clear();
+            transcripts = {};
+            responseTimes = {};
+            latencyMetrics = [];
+
+            // Read execution parameters
+            const useServerPath = document.getElementById('runner-use-server-path').checked;
+            const serverPath = document.getElementById('runner-server-path').value.trim();
+            const transferMode = document.getElementById('runner-transfer-mode').value;
+            const chunkIntervalMs = parseFloat(document.getElementById('exec-interval').value) * 1000;
+
+            // Send config update once more just in case
+            const sessionConfig = JSON.parse(document.getElementById('code-json').innerText);
+            socket.send(JSON.stringify(sessionConfig));
+
+            // Lock parameters during run
+            toggleParamsLock(true);
+            isStreamingActive = true;
+            document.getElementById('btn-run-transcription').disabled = true;
+            document.getElementById('btn-stop-transcription').disabled = false;
+
+            if (useServerPath) {
+                // PATH LOADING MODE
+                logSystem(`[RUNNER] Gửi yêu cầu tải file từ server: ${serverPath}`);
+                const loadMsg = {
+                    "type": "input_audio_buffer.from_path",
+                    "path": serverPath
+                };
+                socket.send(JSON.stringify(loadMsg));
+                logWebSocketOut(loadMsg);
+
+                // Instantly send final commit for direct load ASR
+                const commitId = 1;
+                const commitMsg = {
+                    "type": "input_audio_buffer.commit",
+                    "commit_id": commitId
+                };
+                responseTimes[commitId] = Date.now();
+                socket.send(JSON.stringify(commitMsg));
+                logWebSocketOut(commitMsg);
+                
+                logSystem(`[RUNNER] Đã gửi lệnh commit load-path. Chờ kết quả...`);
+            } else {
+                // LOCAL STREAMING MODE
+                logSystem(`[RUNNER] Bắt đầu stream dữ liệu âm thanh local...`);
+                
+                // Convert Float32 data to Int16 PCM bytes
+                const int16PCM = new Int16Array(float32PCMData.length);
+                for (let i = 0; i < float32PCMData.length; i++) {
+                    const s = Math.max(-1, Math.min(1, float32PCMData[i]));
+                    int16PCM[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+
+                // Chunk size: 100ms = 1600 samples (at 16000Hz)
+                const chunkSize = 1600;
+                let chunkIdx = 0;
+                let bytesSent = 0;
+                let commitIdCounter = 0;
+                let hasUncommittedAudio = false;
+
+                // VAD State Machine inside client
+                const vadCommit = document.getElementById('vad-commit').checked;
+                const silenceMs = parseInt(document.getElementById('vad-silence-ms').value);
+                const maxLenMs = parseInt(document.getElementById('vad-max-len-ms').value);
+                const minLenMs = parseInt(document.getElementById('vad-min-len-ms').value);
+                const vadMode = parseInt(document.getElementById('vad-mode').value);
+                
+                const rmsThresholds = [0.005, 0.012, 0.024, 0.045];
+                const threshold = rmsThresholds[vadMode];
+
+                let isSpeaking = false;
+                let speechStartMs = 0;
+                let lastSpeechEndMs = 0;
+                let speechDurationMs = 0;
+                let silenceDurationMs = 0;
+
+                streamStartTime = Date.now();
+                
+                function sendNextChunk() {
+                    if (!isStreamingActive) return;
+
+                    const offset = chunkIdx * chunkSize;
+                    if (offset >= int16PCM.length) {
+                        // EOF - Send final commit if there is uncommitted audio
+                        if (hasUncommittedAudio) {
+                            commitIdCounter++;
+                            const commitMsg = {
+                                "type": "input_audio_buffer.commit",
+                                "commit_id": commitIdCounter
+                            };
+                            responseTimes[commitIdCounter] = Date.now();
+                            socket.send(JSON.stringify(commitMsg));
+                            logWebSocketOut(commitMsg);
+                            logSystem(`[VAD RUNNER] Đã gửi Commit ${commitIdCounter} cuối cùng khi kết thúc file.`);
+                        }
+                        logSystem(`[RUNNER] Stream hoàn thành. Tổng số chunk gửi: ${chunkIdx}`);
+                        stopASRRunner(false); // Enable controls but keep metrics
+                        return;
+                    }
+
+                    // Slicing chunk
+                    const chunk = int16PCM.subarray(offset, offset + chunkSize);
+                    
+                    // Base64 encode
+                    const base64Audio = base64EncodeAudio(chunk);
+                    const appendMsg = {
+                        "type": "input_audio_buffer.append",
+                        "audio": base64Audio
+                    };
+                    socket.send(JSON.stringify(appendMsg));
+                    
+                    hasUncommittedAudio = true;
+                    bytesSent += chunk.length * 2;
+                    chunkIdx++;
+                    
+                    // Update playhead
+                    currentStreamingPositionMs = Math.round((offset / 16000) * 1000);
+                    drawSimulationCanvas();
+
+                    // VAD check on 20ms frames inside the 100ms chunk
+                    if (vadCommit) {
+                        const frameSamples = 320; // 20ms frame
+                        for (let f = 0; f < chunk.length; f += frameSamples) {
+                            const frame = chunk.subarray(f, f + frameSamples);
+                            if (frame.length < frameSamples) break;
+
+                            // Calculate RMS on the int16 sample (normalized by dividing by 32768)
+                            let sumSquares = 0;
+                            for (let j = 0; j < frame.length; j++) {
+                                const sampleVal = frame[j] / 32768.0;
+                                sumSquares += sampleVal * sampleVal;
+                            }
+                            const rms = Math.sqrt(sumSquares / frame.length);
+                            const isSpeechFrame = rms > threshold;
+                            const currentMs = Math.round(((offset + f) / 16000) * 1000);
+
+                            if (isSpeechFrame) {
+                                if (!isSpeaking) {
+                                    isSpeaking = true;
+                                    speechStartMs = currentMs;
+                                    logSystem(`[VAD RUNNER] Lời nói bắt đầu ở ${(currentMs/1000).toFixed(2)}s`);
+                                }
+                                speechDurationMs += 20;
+                                silenceDurationMs = 0;
+                                lastSpeechEndMs = currentMs;
+                            } else {
+                                silenceDurationMs += 20;
+                            }
+
+                            let triggerCommit = false;
+                            if (isSpeaking) {
+                                const currentUtteranceLen = currentMs - speechStartMs;
+                                
+                                if (silenceDurationMs >= silenceMs) {
+                                    const totalSpeechDetected = lastSpeechEndMs - speechStartMs;
+                                    if (totalSpeechDetected >= minLenMs) {
+                                        triggerCommit = true;
+                                        logSystem(`[VAD RUNNER] Im lặng phát hiện ở ${(currentMs/1000).toFixed(2)}s (${silenceDurationMs}ms silence)`);
+                                    }
+                                    isSpeaking = false;
+                                    speechDurationMs = 0;
+                                    silenceDurationMs = 0;
+                                } else if (currentUtteranceLen >= maxLenMs) {
+                                    triggerCommit = true;
+                                    logSystem(`[VAD RUNNER] Đạt chiều dài tối đa ở ${(currentMs/1000).toFixed(2)}s (${currentUtteranceLen}ms >= ${maxLenMs}ms)`);
+                                    isSpeaking = false;
+                                    speechDurationMs = 0;
+                                    silenceDurationMs = 0;
+                                }
+                            }
+
+                            if (triggerCommit) {
+                                commitIdCounter++;
+                                const commitMsg = {
+                                    "type": "input_audio_buffer.commit",
+                                    "commit_id": commitIdCounter
+                                };
+                                responseTimes[commitIdCounter] = Date.now();
+                                socket.send(JSON.stringify(commitMsg));
+                                logWebSocketOut(commitMsg);
+                                hasUncommittedAudio = false;
+                            }
+                        }
+                    }
+
+                    if (transferMode === 'stream') {
+                        // Pace next chunk
+                        const nextScheduledTime = streamStartTime + (chunkIdx * chunkIntervalMs);
+                        const delay = Math.max(0, nextScheduledTime - Date.now());
+                        streamTimeoutId = setTimeout(sendNextChunk, delay);
+                    } else {
+                        // Fast transfer loop
+                        sendNextChunk();
+                    }
+                }
+
+                // Start loop
+                sendNextChunk();
+            }
+        }
+
+        function stopASRRunner(completeDisable = true) {
+            isStreamingActive = false;
+            if (streamTimeoutId) {
+                clearTimeout(streamTimeoutId);
+                streamTimeoutId = null;
+            }
+            
+            toggleParamsLock(false);
+            
+            document.getElementById('btn-run-transcription').disabled = false;
+            document.getElementById('btn-stop-transcription').disabled = true;
+            
+            if (completeDisable) {
+                currentStreamingPositionMs = 0;
+                drawSimulationCanvas();
+            }
+        }
+
+        // Lock / Unlock parameter adjustments during active runner streaming
+        function toggleParamsLock(isLocked) {
+            const inputs = document.querySelectorAll('.slider, .select-input, .text-input:not(#runner-ws-url):not(#runner-server-path), input[type="checkbox"]:not(#runner-use-server-path)');
+            inputs.forEach(el => el.disabled = isLocked);
+        }
+
+        // Handle Incoming WebSocket Messages
+        function handleIncomingWSMessage(data) {
+            const msgType = data.type;
+            const cid = data.commit_id || 1;
+
+            if (msgType === "response.audio_transcript.delta") {
+                const delta = data.delta || '';
+                updateTranscriptionDelta(cid, delta);
+            } 
+            else if (msgType === "response.audio_transcript.done") {
+                const transcript = data.transcript || '';
+                finalizeTranscriptionItem(cid, transcript);
+
+                // Latency and telemetry calculations
+                if (responseTimes[cid]) {
+                    const elapsedSec = (Date.now() - responseTimes[cid]) / 1000;
+                    completedCommits.add(cid);
+                    
+                    // Save latency
+                    const latencyMs = Math.round(elapsedSec * 1000);
+                    latencyMetrics.push(latencyMs);
+                    
+                    // Display individual TTFT
+                    document.getElementById('telemetry-ttft').innerText = `${latencyMs}ms`;
+
+                    // Calculate RTF based on processed utterance duration
+                    // Let's deduce processed utterance duration from local VAD commit points
+                    let utteranceDurSec = 0;
+                    if (commitPointsMs[cid - 1]) {
+                        const prevCommitMs = cid > 1 ? commitPointsMs[cid - 2] : 0;
+                        utteranceDurSec = (commitPointsMs[cid - 1] - prevCommitMs) / 1000;
+                    } else {
+                        utteranceDurSec = realAudioDurationSec / (cid || 1); // fallback
+                    }
+
+                    const rtf = utteranceDurSec > 0 ? (elapsedSec / utteranceDurSec) : 0;
+                    document.getElementById('telemetry-rtf').innerText = `${rtf.toFixed(2)}x`;
+
+                    // Update live ASR grading
+                    evaluateRunnerMetrics(rtf, latencyMs);
+                }
+            }
+            else if (msgType === "error") {
+                const errMsg = data.error?.message || 'Lỗi server ASR';
+                logSystem(`[Server ERROR] Commit ${cid}: ${errMsg}`, 'error');
+                
+                // Render error banner in transcription
+                const activeItem = document.getElementById(`transcript-item-${cid}`) || createTranscriptionItem(cid);
+                activeItem.className = 'transcript-item';
+                activeItem.style.borderLeftColor = 'var(--danger)';
+                activeItem.querySelector('.transcript-text').innerHTML = `<span style="color: var(--danger); font-style: normal;">⚠️ Lỗi: ${errMsg}</span>`;
+            }
+        }
+
+        // Live transcription view update helpers
+        function createTranscriptionItem(cid) {
+            const outputPanel = document.getElementById('transcription-output');
+            
+            // Remove empty placeholder if any
+            const emptyEl = document.getElementById('transcription-empty');
+            if (emptyEl) emptyEl.remove();
+
+            const item = document.createElement('div');
+            item.id = `transcript-item-${cid}`;
+            item.className = 'transcript-item transcript-item-active';
+
+            const meta = document.createElement('div');
+            meta.className = 'transcript-meta';
+            
+            let timeLbl = '';
+            if (float32PCMData && commitPointsMs[cid - 1]) {
+                const prev = cid > 1 ? commitPointsMs[cid - 2] : 0;
+                timeLbl = `${(prev/1000).toFixed(1)}s - ${(commitPointsMs[cid - 1]/1000).toFixed(1)}s`;
+            } else {
+                timeLbl = `Commit ${cid}`;
+            }
+
+            meta.innerHTML = `<span style="color: var(--accent-secondary); font-weight:700;">[UTTERANCE ${cid}]</span><span>🕒 ${timeLbl}</span>`;
+            
+            const text = document.createElement('div');
+            text.className = 'transcript-text';
+            text.innerHTML = '...';
+
+            item.appendChild(meta);
+            item.appendChild(text);
+            outputPanel.appendChild(item);
+            
+            // Auto scroll to bottom
+            outputPanel.scrollTop = outputPanel.scrollHeight;
+            return item;
+        }
+
+        function updateTranscriptionDelta(cid, delta) {
+            let activeItem = document.getElementById(`transcript-item-${cid}`);
+            if (!activeItem) {
+                activeItem = createTranscriptionItem(cid);
+            }
+            const textEl = activeItem.querySelector('.transcript-text');
+            if (textEl.innerText === '...') {
+                textEl.innerText = delta;
+            } else {
+                textEl.innerText += delta;
+            }
+
+            // Update live character count
+            totalTranscribedChars += delta.length;
+            document.getElementById('telemetry-chars').innerText = totalTranscribedChars;
+        }
+
+        function finalizeTranscriptionItem(cid, transcript) {
+            let activeItem = document.getElementById(`transcript-item-${cid}`);
+            if (!activeItem) {
+                activeItem = createTranscriptionItem(cid);
+            }
+            activeItem.className = 'transcript-item'; // Remove active blinking border
+            const textEl = activeItem.querySelector('.transcript-text');
+            textEl.innerText = transcript || '(Mất tiếng / Không nhận dạng được)';
+        }
+
+        // Live grading for runner metrics
+        function evaluateRunnerMetrics(rtf, ttftMs) {
+            const gradeEl = document.getElementById('telemetry-grade');
+            
+            let grade = 'F';
+            if (rtf < 0.1 && ttftMs < 150) {
+                grade = 'S';
+                gradeEl.style.color = '#c084fc';
+            } else if (rtf < 0.2 && ttftMs < 300) {
+                grade = 'A';
+                gradeEl.style.color = '#34d399';
+            } else if (rtf < 0.5 && ttftMs < 600) {
+                grade = 'B';
+                gradeEl.style.color = '#fbbf24';
+            } else {
+                grade = 'F';
+                gradeEl.style.color = '#f87171';
+            }
+            gradeEl.innerText = grade;
+        }
+
+        // Base64 helper for float32/int16 data streaming
+        function base64EncodeAudio(int16Array) {
+            const binary = [];
+            const len = int16Array.length;
+            
+            const bytes = new Uint8Array(int16Array.buffer);
+            const byteLen = bytes.byteLength;
+            for (let i = 0; i < byteLen; i++) {
+                binary.push(String.fromCharCode(bytes[i]));
+            }
+            return window.btoa(binary.join(''));
+        }
+
+        // System Log Console implementation
+        function logSystem(msg, type = 'info') {
+            const consoleBody = document.getElementById('console-body');
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            
+            const ts = new Date().toLocaleTimeString('vi-VN', { hour12: false }) + '.' + String(Date.now() % 1000).padStart(3, '0');
+            
+            if (type === 'error') {
+                line.innerHTML = `<span class="ts">[${ts}]</span> <span style="color: var(--danger);">[SYSTEM] ${msg}</span>`;
+            } else {
+                line.innerHTML = `<span class="ts">[${ts}]</span> <span class="direction-sys">[SYSTEM] ${msg}</span>`;
+            }
+            
+            consoleBody.appendChild(line);
+            consoleBody.scrollTop = consoleBody.scrollHeight;
+        }
+
+        function logWebSocketOut(payload) {
+            const consoleBody = document.getElementById('console-body');
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            
+            const ts = new Date().toLocaleTimeString('vi-VN', { hour12: false }) + '.' + String(Date.now() % 1000).padStart(3, '0');
+            const payloadStr = JSON.stringify(payload);
+            const truncPayload = payloadStr.length > 120 ? payloadStr.substring(0, 120) + '...' : payloadStr;
+            
+            line.innerHTML = `<span class="ts">[${ts}]</span> <span class="direction-out">▲ SENT:</span> <code>${truncPayload}</code>`;
+            consoleBody.appendChild(line);
+            consoleBody.scrollTop = consoleBody.scrollHeight;
+        }
+
+        function logWebSocketIn(payload) {
+            const consoleBody = document.getElementById('console-body');
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            
+            const ts = new Date().toLocaleTimeString('vi-VN', { hour12: false }) + '.' + String(Date.now() % 1000).padStart(3, '0');
+            let payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+            
+            // Filter keepalives if too noisy (display them compactly)
+            if (payload.type === 'session.keepalive') {
+                line.innerHTML = `<span class="ts">[${ts}]</span> <span style="color: #6b7280;">▼ RECV: session.keepalive</span>`;
+            } else {
+                const truncPayload = payloadStr.length > 120 ? payloadStr.substring(0, 120) + '...' : payloadStr;
+                line.innerHTML = `<span class="ts">[${ts}]</span> <span class="direction-in">▼ RECV:</span> <code>${truncPayload}</code>`;
+            }
+            
+            consoleBody.appendChild(line);
+            consoleBody.scrollTop = consoleBody.scrollHeight;
+        }
+
+        function toggleConsole() {
+            const body = document.getElementById('console-body');
+            const icon = document.getElementById('console-toggle-icon');
+            isConsoleCollapsed = !isConsoleCollapsed;
+            
+            if (isConsoleCollapsed) {
+                body.style.display = 'none';
+                icon.innerText = '▲ Expand';
+            } else {
+                body.style.display = 'flex';
+                icon.innerText = '▼ Collapse';
+            }
+        }
+
+        // Copy functionality
+        function copyToClipboard(elementId) {
+            const codeText = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(codeText).then(() => {
+                const btn = document.querySelector(`#${elementId}`).parentElement.querySelector('.copy-btn');
+                const origText = btn.innerHTML;
+                btn.innerHTML = '✅ Copied!';
+                btn.style.background = 'var(--success)';
+                setTimeout(() => {
+                    btn.innerHTML = origText;
+                    btn.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                alert('Không thể copy: ' + err);
+            });
+        }
+
+        // Grading calculator logic
+        function runGradingCalculator() {
+            const hrs = parseFloat(document.getElementById('calc-hrs').value) || 0;
+            const cer = parseFloat(document.getElementById('calc-cer').value) || 0;
+            const rtf = parseFloat(document.getElementById('calc-rtf').value) || 0;
+
+            const gradeEl = document.getElementById('calc-grade');
+            const labelEl = document.getElementById('calc-grade-label');
+            const badgeEl = document.getElementById('calc-pass-badge');
+
+            let grade = 'F';
+            let label = 'Fail (Chưa đạt chuẩn)';
+            let isPass = false;
+
+            if (hrs === 0 && cer < 1.0 && rtf < 0.1) {
+                grade = 'S';
+                label = 'Excellent (Hoàn hảo)';
+                isPass = true;
+            } else if (hrs < 0.5 && cer < 3.0 && rtf < 0.2) {
+                grade = 'A';
+                label = 'Good (Đạt chuẩn RT ASR)';
+                isPass = true;
+            } else if (hrs < 2.0 && cer < 10.0 && rtf < 0.5) {
+                grade = 'B';
+                label = 'Fair (Khá, chấp nhận được)';
+                isPass = true;
+            }
+
+            gradeEl.innerText = grade;
+            labelEl.innerText = label;
+
+            if (isPass) {
+                badgeEl.innerText = 'PASSED ACCEPTANCE GATE';
+                badgeEl.className = 'pass-badge pass';
+            } else {
+                badgeEl.innerText = 'FAILED GATE';
+                badgeEl.className = 'pass-badge fail';
+            }
+        }
+
+        // Window resize adjustments
+        window.addEventListener('resize', () => {
+            updateAll();
+        });
+
+        // Initial setup
+        updateAll();
+        runGradingCalculator();
+    </script>
+</body>
+</html>

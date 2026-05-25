@@ -1,5 +1,9 @@
 # Voxtral ASR Benchmark & Evaluation Suite
 
+> [!WARNING]
+> **DỰ ÁN TẠM THỜI PENDING (TEMPORARILY PENDING)**
+> Dự án này hiện tại đang tạm thời tạm ngưng phát triển (pending). Toàn bộ các thông số cấu hình và trình chạy giả lập thời gian thực trực quan đã được xây dựng hoàn thiện tại [voxtral_configurator.html](voxtral_configurator.html).
+
 Chào mừng bạn đến với bộ công cụ đánh giá và so sánh hiệu năng các engine ASR (Automatic Speech Recognition). Dự án này cung cấp các công cụ để đo lường độ chính xác (CER), tốc độ (RTF), và độ ổn định (hallucination) của các hệ thống nhận dạng giọng nói.
 
 ## 🚀 Tính năng chính
