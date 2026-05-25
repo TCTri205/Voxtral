@@ -146,12 +146,14 @@ async def transcription_client(
             server_errors = []
             vad_config = None
             vad_result = None
+            last_activity_time = time.time()
 
             async def receiver():
-                nonlocal keepalive_peak_all, vad_config, vad_result
+                nonlocal keepalive_peak_all, vad_config, vad_result, last_activity_time
                 while True:
                     try:
                         message = await websocket.recv()
+                        last_activity_time = time.time()
                         data = json.loads(message)
                         msg_type = data.get("type")
                         cid = data.get("commit_id") or 1
@@ -328,9 +330,9 @@ async def transcription_client(
                         "error_type": "server_error",
                         "error_message": "; ".join(server_errors)
                     }
-                if time.time() - t_start_wait > response_timeout:
+                if time.time() - last_activity_time > response_timeout:
                     wait_elapsed = time.time() - t_start_wait
-                    log(f"\n[Timeout] {os.path.basename(audio_path)}: Timeout waiting for commits ({len(completed_commits)}/{len(sent_commits)} done) after {wait_elapsed:.2f}s", log_file)
+                    log(f"\n[Timeout] {os.path.basename(audio_path)}: Timeout waiting for commits ({len(completed_commits)}/{len(sent_commits)} done) after {wait_elapsed:.2f}s (no server activity for {response_timeout}s)", log_file)
                     receiver_task.cancel()
                     return {
                         "status": "failed",

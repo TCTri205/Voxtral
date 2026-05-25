@@ -84,9 +84,12 @@ Bắt đầu ghi âm và tự động gửi/cam kết (commit) dữ liệu giọ
 
 ```bash
 python run_asr.py --vad-commit --vad-silence-ms 500 --vad-max-len-ms 10000 --vad-mode 2
+
+python run_asr.py --audio audio/media_148280_1767762915627.mp3 --vad-commit --vad-silence-ms 500 --vad-max-len-ms 10000 --vad-mode 2 --host wss://your-current-ngrok-url.ngrok-free.app
 ```
 
 **Giải thích tham số:**
+
 - `--vad-commit`: Kích hoạt bộ lọc giọng nói VAD phía client để tự động kích hoạt `commit` khi bạn ngắt giọng.
 - `--vad-silence-ms 500`: Khoảng lặng tối thiểu (500 miligiây) để client phát hiện bạn đã nói xong và trigger commit gửi lên server Colab dịch.
 - `--vad-max-len-ms 10000`: Thời gian tối đa (10 giây) để bắt buộc commit chunk kể cả khi bạn nói liên tục không nghỉ.
